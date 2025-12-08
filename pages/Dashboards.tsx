@@ -1,0 +1,746 @@
+import React, { useState } from 'react';
+import { Card, Button, Badge, Input, ImageUpload } from '../components/UI';
+import { UPCOMING_SESSIONS, PAST_SESSIONS, REVENUE_DATA, ENGAGEMENT_DATA } from '../data';
+import { Calendar, CreditCard, ChevronRight, Users, DollarSign, Activity, Clock, Search, CheckCircle, XCircle, Download, Mail, Plus, Trash } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
+import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
+
+// --- Shared Components ---
+
+const StatCard: React.FC<{ label: string; value: string; icon: any; trend?: string; color?: string }> = ({ label, value, icon: Icon, trend, color = 'emerald' }) => {
+    const colors: Record<string, string> = {
+        emerald: 'bg-emerald-50 text-emerald-600',
+        blue: 'bg-blue-50 text-blue-600',
+        purple: 'bg-purple-50 text-purple-600',
+        orange: 'bg-orange-50 text-orange-600',
+    };
+
+    return (
+        <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+                <div className={`p-3 rounded-xl ${colors[color] || colors.emerald}`}>
+                    <Icon size={24} />
+                </div>
+                {trend && <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">{trend}</span>}
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+            <p className="text-sm text-gray-500 mt-1">{label}</p>
+        </Card>
+    );
+};
+
+const SessionRow: React.FC<{ session: any; isPast?: boolean }> = ({ session, isPast }) => (
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-emerald-200 transition-colors gap-4">
+        <div className="flex items-center gap-4">
+            <div className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl font-bold border flex-shrink-0 ${isPast ? 'bg-gray-50 text-gray-500 border-gray-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                <span className="text-xs uppercase">{session.date.split(' ')[0]}</span>
+                <span className="text-lg">{session.date.split(' ')[1].replace(',', '')}</span>
+            </div>
+            <div>
+                <h4 className="font-bold text-gray-900">{session.type}</h4>
+                <p className="text-sm text-gray-500 flex items-center gap-2">
+                    with {session.expertName} • {session.time}
+                </p>
+            </div>
+        </div>
+        <div className="flex gap-2 w-full sm:w-auto">
+            {isPast ? (
+                <Button size="sm" variant="ghost" className="w-full sm:w-auto">View Notes</Button>
+            ) : (
+                <>
+                    <Button size="sm" variant="outline" className="w-full sm:w-auto">Reschedule</Button>
+                    <Button size="sm" className="w-full sm:w-auto">Join</Button>
+                </>
+            )}
+        </div>
+    </div>
+);
+
+// --- USER DASHBOARD VIEWS ---
+
+export const UserDashboard: React.FC = () => {
+  const { user } = useAuth();
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+        <div>
+            <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.name}</h1>
+            <p className="text-gray-500">Here's your personalized wellbeing overview.</p>
+        </div>
+        <Button>Book New Session</Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="p-6 lg:col-span-2">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-gray-900">Upcoming Sessions</h3>
+                <Link to="/dashboard/user/sessions" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">View All</Link>
+            </div>
+            <div className="space-y-4">
+                {UPCOMING_SESSIONS.map(s => <SessionRow key={s.id} session={s} />)}
+            </div>
+        </Card>
+
+        <div className="space-y-6">
+            <Card className="p-6 bg-gradient-to-br from-gray-900 to-gray-800 text-white border-none">
+                <div className="flex justify-between items-start mb-8">
+                    <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm">
+                        <CreditCard className="text-emerald-400" size={24} />
+                    </div>
+                    <Badge color="emerald">Active</Badge>
+                </div>
+                <div className="mb-2">
+                    <p className="text-gray-400 text-sm">Available Credits</p>
+                    <h3 className="text-4xl font-bold">150</h3>
+                </div>
+                <Button size="sm" className="w-full bg-emerald-500 hover:bg-emerald-400 border-none text-white mt-4">Top Up Credits</Button>
+            </Card>
+
+            <Card className="p-6">
+                 <h3 className="font-bold text-gray-900 mb-4">Recommended for you</h3>
+                 <div className="flex items-center gap-3 mb-3">
+                     <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=100" className="w-10 h-10 rounded-full object-cover" alt=""/>
+                     <div className="flex-1 min-w-0">
+                         <p className="text-sm font-medium text-gray-900 truncate">Stress Management</p>
+                         <p className="text-xs text-gray-500 truncate">Workshop • Dr. Anya</p>
+                     </div>
+                     <Button size="sm" variant="ghost" className="p-2"><ChevronRight size={16}/></Button>
+                 </div>
+            </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const UserSessions: React.FC = () => {
+    const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
+
+    return (
+        <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Your Sessions</h1>
+            
+            <div className="flex border-b border-gray-200">
+                <button 
+                    className={`pb-3 px-4 text-sm font-medium transition-colors ${tab === 'upcoming' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    onClick={() => setTab('upcoming')}
+                >
+                    Upcoming
+                </button>
+                <button 
+                    className={`pb-3 px-4 text-sm font-medium transition-colors ${tab === 'past' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    onClick={() => setTab('past')}
+                >
+                    Past History
+                </button>
+            </div>
+
+            <div className="space-y-4">
+                {tab === 'upcoming' ? (
+                    UPCOMING_SESSIONS.length > 0 ? (
+                        UPCOMING_SESSIONS.map(s => <SessionRow key={s.id} session={s} />)
+                    ) : (
+                        <p className="text-gray-500 text-center py-8">No upcoming sessions.</p>
+                    )
+                ) : (
+                    PAST_SESSIONS.length > 0 ? (
+                        PAST_SESSIONS.map(s => <SessionRow key={s.id} session={s} isPast />)
+                    ) : (
+                        <p className="text-gray-500 text-center py-8">No session history.</p>
+                    )
+                )}
+            </div>
+        </div>
+    );
+};
+
+export const UserSettings: React.FC = () => (
+    <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+                <Card className="p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Personal Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input label="Full Name" defaultValue="Sarah Johnson" />
+                        <Input label="Email" defaultValue="sarah@example.com" />
+                        <Input label="Phone Number" defaultValue="+1 (555) 000-0000" />
+                        <Input label="Location" defaultValue="San Francisco, CA" />
+                    </div>
+                    <div className="mt-6 flex justify-end">
+                        <Button>Save Changes</Button>
+                    </div>
+                </Card>
+
+                <Card className="p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Notifications</h3>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-900">Email Notifications</p>
+                                <p className="text-xs text-gray-500">Receive updates about your sessions.</p>
+                            </div>
+                            <input type="checkbox" className="toggle text-emerald-500" defaultChecked />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-900">SMS Reminders</p>
+                                <p className="text-xs text-gray-500">Get text alerts 15 minutes before sessions.</p>
+                            </div>
+                            <input type="checkbox" className="toggle text-emerald-500" />
+                        </div>
+                    </div>
+                </Card>
+            </div>
+
+            <div className="space-y-6">
+                <Card className="p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Profile Picture</h3>
+                    <ImageUpload />
+                </Card>
+            </div>
+        </div>
+    </div>
+);
+
+// --- EXPERT DASHBOARD VIEWS ---
+
+export const ExpertDashboard: React.FC = () => {
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <div className="flex items-center gap-3">
+             <span className="text-sm text-gray-500 hidden sm:inline">Availability:</span>
+             <Badge color="emerald">Online</Badge>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard label="Total Revenue" value="$12,450" icon={DollarSign} trend="+12%" color="emerald" />
+        <StatCard label="Total Sessions" value="145" icon={Calendar} trend="+5%" color="blue" />
+        <StatCard label="Active Clients" value="48" icon={Users} trend="+8%" color="purple" />
+        <StatCard label="Avg. Rating" value="4.9" icon={Activity} color="orange" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+         <Card className="lg:col-span-2 p-6">
+            <h3 className="font-bold text-gray-900 mb-6">Revenue Overview</h3>
+            <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={REVENUE_DATA}>
+                        <defs>
+                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10B981" stopOpacity={0.1}/>
+                                <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                            </linearGradient>
+                        </defs>
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} prefix="$" />
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                        <Area type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
+         </Card>
+
+         <Card className="p-6">
+             <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-gray-900">Upcoming Bookings</h3>
+                <Button size="sm" variant="ghost">View All</Button>
+             </div>
+             <div className="space-y-4">
+                 {[1, 2, 3].map((i) => (
+                     <div key={i} className="flex gap-4 pb-4 border-b border-gray-50 last:border-0 last:pb-0">
+                         <div className="text-center min-w-[3rem]">
+                             <p className="text-xs text-gray-500 font-medium">10:00</p>
+                             <p className="text-xs text-gray-400">AM</p>
+                         </div>
+                         <div className="border-l-2 border-emerald-500 pl-4">
+                             <p className="text-sm font-bold text-gray-900">Sarah Johnson</p>
+                             <p className="text-xs text-gray-500">Mindfulness Session</p>
+                         </div>
+                     </div>
+                 ))}
+             </div>
+         </Card>
+      </div>
+    </div>
+  );
+};
+
+export const ExpertBookings: React.FC = () => {
+    const bookings = [
+        { id: 1, name: "Alice Freeman", type: "Initial Consultation", date: "Today, 2:00 PM", status: "pending" },
+        { id: 2, name: "Bob Smith", type: "Mindfulness Session", date: "Tomorrow, 10:00 AM", status: "confirmed" },
+        { id: 3, name: "Charlie Davis", type: "Therapy Session", date: "Jul 15, 4:00 PM", status: "confirmed" }
+    ];
+
+    return (
+        <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="p-6 lg:col-span-2">
+                    <h3 className="font-bold text-gray-900 mb-4">All Bookings</h3>
+                    <div className="space-y-4">
+                        {bookings.map(booking => (
+                            <div key={booking.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold">
+                                        {booking.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-gray-900">{booking.name}</h4>
+                                        <p className="text-sm text-gray-500">{booking.type} • {booking.date}</p>
+                                    </div>
+                                </div>
+                                {booking.status === 'pending' ? (
+                                    <div className="flex gap-2">
+                                        <Button size="sm" variant="secondary"><CheckCircle size={16} className="mr-1" /> Accept</Button>
+                                        <Button size="sm" variant="ghost"><XCircle size={16} className="mr-1" /> Decline</Button>
+                                    </div>
+                                ) : (
+                                    <Badge color="emerald">Confirmed</Badge>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+                
+                <div className="space-y-6">
+                    <Card className="p-6">
+                        <h3 className="font-bold text-gray-900 mb-4">Quick Actions</h3>
+                        <div className="space-y-3">
+                            <Button variant="outline" className="w-full justify-start"><Calendar size={16} className="mr-2"/> Sync Calendar</Button>
+                            <Button variant="outline" className="w-full justify-start"><Clock size={16} className="mr-2"/> Update Availability</Button>
+                        </div>
+                    </Card>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const ExpertAvailability: React.FC = () => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const hours = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
+    const [selectedSlots, setSelectedSlots] = useState<string[]>(['Mon-9:00 AM', 'Mon-10:00 AM', 'Tue-10:00 AM']);
+
+    const toggleSlot = (day: string, hour: string) => {
+        const key = `${day}-${hour}`;
+        if (selectedSlots.includes(key)) {
+            setSelectedSlots(selectedSlots.filter(s => s !== key));
+        } else {
+            setSelectedSlots([...selectedSlots, key]);
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-gray-900">Availability Management</h1>
+                <div className="flex gap-2">
+                    <Button variant="outline">Sync Google Calendar</Button>
+                    <Button>Save Changes</Button>
+                </div>
+            </div>
+
+            <Card className="p-6">
+                <p className="text-sm text-gray-500 mb-6">Click on the slots below to mark your availability for recurring weekly sessions.</p>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-center text-sm">
+                        <thead>
+                            <tr>
+                                <th className="p-2"></th>
+                                {days.map(day => (
+                                    <th key={day} className="p-2 font-semibold text-gray-700">{day}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {hours.map(hour => (
+                                <tr key={hour}>
+                                    <td className="p-2 font-medium text-gray-500 text-right pr-4">{hour}</td>
+                                    {days.map(day => {
+                                        const isSelected = selectedSlots.includes(`${day}-${hour}`);
+                                        return (
+                                            <td key={`${day}-${hour}`} className="p-1">
+                                                <div 
+                                                    onClick={() => toggleSlot(day, hour)}
+                                                    className={`h-10 rounded-md cursor-pointer transition-all border ${
+                                                        isSelected 
+                                                        ? 'bg-emerald-50 border-emerald-600 shadow-sm' 
+                                                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                                                    }`}
+                                                ></div>
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
+        </div>
+    );
+};
+
+export const ExpertCreateGroupSession: React.FC = () => {
+    return (
+        <div className="max-w-3xl mx-auto space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Create Group Session</h1>
+            <Card className="p-8">
+                <form className="space-y-6">
+                    <Input label="Session Title" placeholder="e.g., Morning Mindfulness Workshop" />
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Input label="Date" type="date" />
+                        <Input label="Time" type="time" />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Input label="Price per person ($)" type="number" placeholder="20" />
+                        <Input label="Max Attendees" type="number" placeholder="15" />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm py-2 px-3 border" rows={4} placeholder="What will participants learn?" />
+                    </div>
+
+                    <ImageUpload label="Cover Image" />
+
+                    <div className="flex justify-end pt-4">
+                        <Button size="lg">Publish Session</Button>
+                    </div>
+                </form>
+            </Card>
+        </div>
+    );
+};
+
+export const ExpertClients: React.FC = () => {
+    const clients = [
+        { id: 1, name: "Sarah Johnson", sessions: 12, lastSeen: "2 days ago", next: "Aug 12" },
+        { id: 2, name: "Michael Brown", sessions: 5, lastSeen: "1 week ago", next: "Aug 15" },
+        { id: 3, name: "Emily Davis", sessions: 3, lastSeen: "3 weeks ago", next: "Pending" },
+        { id: 4, name: "Jessica Wilson", sessions: 20, lastSeen: "Yesterday", next: "Aug 10" },
+    ];
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
+                <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                    <input type="text" placeholder="Search clients..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-500" />
+                </div>
+            </div>
+
+            <Card>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-gray-50 text-gray-500 border-b border-gray-200">
+                            <tr>
+                                <th className="px-6 py-3 font-medium">Name</th>
+                                <th className="px-6 py-3 font-medium">Total Sessions</th>
+                                <th className="px-6 py-3 font-medium">Last Seen</th>
+                                <th className="px-6 py-3 font-medium">Next Session</th>
+                                <th className="px-6 py-3 font-medium text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {clients.map(client => (
+                                <tr key={client.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4 font-medium text-gray-900">{client.name}</td>
+                                    <td className="px-6 py-4 text-gray-600">{client.sessions}</td>
+                                    <td className="px-6 py-4 text-gray-600">{client.lastSeen}</td>
+                                    <td className="px-6 py-4 text-gray-600">{client.next}</td>
+                                    <td className="px-6 py-4 text-right">
+                                        <Button size="sm" variant="ghost">Details</Button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
+        </div>
+    );
+};
+
+export const ExpertEarnings: React.FC = () => (
+    <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900">Earnings</h1>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <StatCard label="Available for Payout" value="$1,250.00" icon={DollarSign} color="emerald" />
+            <StatCard label="Pending Clearance" value="$450.00" icon={Clock} color="orange" />
+            <Card className="p-6 flex flex-col justify-center items-center text-center">
+                <Button className="w-full mb-2">Withdraw Funds</Button>
+                <p className="text-xs text-gray-500">Payouts processed every Friday</p>
+            </Card>
+        </div>
+
+        <Card className="p-6">
+            <h3 className="font-bold text-gray-900 mb-6">Transaction History</h3>
+            <div className="space-y-4">
+                {[
+                    { id: 1, desc: "Session with Sarah J.", date: "Jul 12", amount: "+$120.00", status: "Cleared" },
+                    { id: 2, desc: "Session with Mike B.", date: "Jul 11", amount: "+$95.00", status: "Cleared" },
+                    { id: 3, desc: "Payout to Bank Account", date: "Jul 10", amount: "-$2,400.00", status: "Completed" },
+                    { id: 4, desc: "Session with Emily D.", date: "Jul 09", amount: "+$120.00", status: "Pending" },
+                ].map(tx => (
+                    <div key={tx.id} className="flex items-center justify-between p-4 border-b border-gray-50 last:border-0">
+                        <div>
+                            <p className="font-bold text-gray-900">{tx.desc}</p>
+                            <p className="text-xs text-gray-500">{tx.date}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className={`font-bold ${tx.amount.startsWith('+') ? 'text-emerald-600' : 'text-gray-900'}`}>{tx.amount}</p>
+                            <span className={`text-xs ${tx.status === 'Pending' ? 'text-orange-500' : 'text-gray-400'}`}>{tx.status}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </Card>
+    </div>
+);
+
+export const ExpertSettings: React.FC = () => (
+    <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900">Profile & Settings</h1>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+                <Card className="p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Public Profile</h3>
+                    <div className="space-y-4">
+                        <Input label="Display Name" defaultValue="Dr. Anya Sharma" />
+                        <Input label="Professional Title" defaultValue="Clinical Psychologist" />
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+                            <textarea className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm py-2 px-3 border" rows={4} defaultValue="Specializing in cognitive behavioral therapy..." />
+                        </div>
+                        <Input label="Hourly Rate ($)" type="number" defaultValue="180" />
+                    </div>
+                    <div className="mt-6 flex justify-end">
+                        <Button>Save Profile</Button>
+                    </div>
+                </Card>
+            </div>
+            <div className="space-y-6">
+                <Card className="p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Profile Photo</h3>
+                    <ImageUpload />
+                </Card>
+                <Card className="p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Availability</h3>
+                    <p className="text-sm text-gray-500 mb-4">Set your weekly schedule to allow clients to book sessions.</p>
+                    <Link to="/dashboard/expert/availability">
+                        <Button variant="outline" className="w-full">Manage Schedule</Button>
+                    </Link>
+                </Card>
+            </div>
+        </div>
+    </div>
+);
+
+// --- COMPANY DASHBOARD VIEWS ---
+
+export const CompanyDashboard: React.FC = () => {
+    return (
+        <div className="space-y-8">
+            <div className="bg-white p-8 rounded-2xl border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div className="text-center md:text-left">
+                    <h1 className="text-3xl font-bold text-gray-900">Acme Co. Wellbeing</h1>
+                    <p className="text-gray-500 mt-2">Manage your company's credits and engagement.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4 items-center">
+                     <div className="text-center sm:text-right">
+                         <p className="text-sm text-gray-500">Corporate Balance</p>
+                         <p className="text-2xl font-bold text-emerald-600">5,000 Credits</p>
+                     </div>
+                     <Button size="lg">Buy Credits</Button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <Card className="p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="font-bold text-gray-900">Employee Engagement</h3>
+                        <Badge color="emerald">+15% vs last month</Badge>
+                    </div>
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={ENGAGEMENT_DATA}>
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
+                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
+                                <Tooltip contentStyle={{ borderRadius: '8px' }} />
+                                <Line type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2} dot={{r: 4, fill: '#10B981'}} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                </Card>
+
+                <Card className="p-6">
+                    <h3 className="font-bold text-gray-900 mb-6">Credit Usage by Department</h3>
+                    <div className="space-y-6">
+                        {[
+                            { name: 'Engineering', val: 75 },
+                            { name: 'Marketing', val: 45 },
+                            { name: 'Sales', val: 60 },
+                            { name: 'HR', val: 30 }
+                        ].map(dept => (
+                            <div key={dept.name}>
+                                <div className="flex justify-between text-sm mb-2">
+                                    <span className="font-medium text-gray-700">{dept.name}</span>
+                                    <span className="text-gray-500">{dept.val}% Used</span>
+                                </div>
+                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-emerald-500 rounded-full" 
+                                        style={{ width: `${dept.val}%` }} 
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+            </div>
+        </div>
+    );
+};
+
+export const CompanyEmployees: React.FC = () => {
+    const employees = [
+        { id: 1, name: "Alice Freeman", email: "alice@acme.com", department: "Engineering", status: "Active" },
+        { id: 2, name: "Bob Smith", email: "bob@acme.com", department: "Sales", status: "Active" },
+        { id: 3, name: "Charlie Davis", email: "charlie@acme.com", department: "Marketing", status: "Invited" },
+    ];
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
+                <Button><Plus size={18} className="mr-2" /> Invite Employee</Button>
+            </div>
+
+            <Card>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-gray-50 text-gray-500 border-b border-gray-200">
+                            <tr>
+                                <th className="px-6 py-3 font-medium">Name</th>
+                                <th className="px-6 py-3 font-medium">Email</th>
+                                <th className="px-6 py-3 font-medium">Department</th>
+                                <th className="px-6 py-3 font-medium">Status</th>
+                                <th className="px-6 py-3 font-medium text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {employees.map(emp => (
+                                <tr key={emp.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4 font-medium text-gray-900">{emp.name}</td>
+                                    <td className="px-6 py-4 text-gray-600">{emp.email}</td>
+                                    <td className="px-6 py-4 text-gray-600">{emp.department}</td>
+                                    <td className="px-6 py-4">
+                                        <Badge color={emp.status === 'Active' ? 'emerald' : 'gray'}>{emp.status}</Badge>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <Button size="sm" variant="ghost">Manage</Button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
+        </div>
+    );
+};
+
+export const CompanyCredits: React.FC = () => (
+    <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900">Credits & Billing</h1>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+                { credits: 1000, price: 900, discount: "10%" },
+                { credits: 5000, price: 4000, discount: "20%" },
+                { credits: 10000, price: 7500, discount: "25%" },
+            ].map((pkg, idx) => (
+                <Card key={idx} className="p-6 text-center border hover:border-emerald-300 transition-colors cursor-pointer">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{pkg.credits} Credits</h3>
+                    <p className="text-3xl font-bold text-emerald-600 mb-2">${pkg.price}</p>
+                    <Badge color="blue">Save {pkg.discount}</Badge>
+                    <Button className="w-full mt-6">Purchase</Button>
+                </Card>
+            ))}
+        </div>
+
+        <Card className="p-6">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-gray-900">Purchase History</h3>
+                <Button size="sm" variant="outline"><Download size={16} className="mr-2" /> Export Invoice</Button>
+            </div>
+            <div className="space-y-4">
+                {[1, 2].map(i => (
+                    <div key={i} className="flex justify-between items-center py-3 border-b border-gray-50 last:border-0">
+                        <div>
+                            <p className="font-medium text-gray-900">5000 Credits Pack</p>
+                            <p className="text-xs text-gray-500">Invoice #INV-2024-00{i} • Oct 20, 2024</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="text-right">
+                                <p className="font-bold text-gray-900">$4,000.00</p>
+                                <span className="text-xs text-emerald-600">Paid</span>
+                            </div>
+                            <Link to={`/invoice/${i}`}>
+                                <Button size="sm" variant="ghost">View</Button>
+                            </Link>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </Card>
+    </div>
+);
+
+export const CompanySettings: React.FC = () => (
+    <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900">Company Settings</h1>
+        <Card className="p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Organization Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input label="Company Name" defaultValue="Acme Co." />
+                <Input label="Industry" defaultValue="Technology" />
+                <Input label="Billing Email" defaultValue="billing@acme.com" />
+                <Input label="Address" defaultValue="123 Tech Blvd, San Francisco, CA" />
+            </div>
+            <div className="mt-6 flex justify-end">
+                <Button>Save Changes</Button>
+            </div>
+        </Card>
+        <Card className="p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Admin Users</h3>
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">A</div>
+                        <div>
+                            <p className="font-medium text-gray-900">Admin User</p>
+                            <p className="text-xs text-gray-500">admin@acme.com</p>
+                        </div>
+                    </div>
+                    <Button size="sm" variant="ghost">Remove</Button>
+                </div>
+                <Button variant="outline" size="sm" className="w-full"><Plus size={16} className="mr-2" /> Add Admin</Button>
+            </div>
+        </Card>
+    </div>
+);
