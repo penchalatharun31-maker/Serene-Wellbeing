@@ -1,12 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 import { useNavigate } from 'react-router-dom';
+import { authService, AuthResponse } from '../services/auth.service';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, role: User['role']) => void;
-  signup: (name: string, email: string, role: User['role']) => void;
-  logout: () => void;
+  loading: boolean;
+  error: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string, role?: User['role']) => Promise<void>;
+  logout: () => Promise<void>;
+  updateUser: (userData: Partial<User>) => void;
   isAuthenticated: boolean;
 }
 
@@ -14,52 +18,133 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Mock persistence
+  // Load user from localStorage and verify with backend
   useEffect(() => {
-    const storedUser = localStorage.getItem('serene_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+
+      if (token && storedUser) {
+        try {
+          // Verify token with backend
+          const response = await authService.getCurrentUser();
+          setUser(response.user);
+        } catch (err) {
+          // Token invalid, clear storage
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+          setUser(null);
+        }
+      }
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
-  const login = (email: string, role: User['role']) => {
-    // Mock login logic - in a real app this would call an API
-    const newUser: User = {
-      id: '1',
-      name: email.split('@')[0],
-      email,
-      role,
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100'
-    };
-    setUser(newUser);
-    localStorage.setItem('serene_user', JSON.stringify(newUser));
-    navigate(`/dashboard/${role}`);
+  const login = async (email: string, password: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response: AuthResponse = await authService.login({ email, password });
+
+      // Store tokens
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('refreshToken', response.refreshToken);
+      localStorage.setItem('user', JSON.stringify(response.user));
+
+      // Update state
+      setUser(response.user as any);
+
+      // Navigate to appropriate dashboard
+      navigate(`/dashboard/${response.user.role}`);
+    } catch (err: any) {
+      setError(err.message || 'Login failed');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const signup = (name: string, email: string, role: User['role']) => {
-    // Mock signup logic
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      email,
-      role,
-      avatar: 'https://via.placeholder.com/150'
-    };
-    setUser(newUser);
-    localStorage.setItem('serene_user', JSON.stringify(newUser));
-    navigate(`/dashboard/${role}`);
+  const signup = async (
+    name: string,
+    email: string,
+    password: string,
+    role: User['role'] = 'user'
+  ) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response: AuthResponse = await authService.register({
+        name,
+        email,
+        password,
+        role,
+      });
+
+      // Store tokens
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('refreshToken', response.refreshToken);
+      localStorage.setItem('user', JSON.stringify(response.user));
+
+      // Update state
+      setUser(response.user as any);
+
+      // Navigate to appropriate dashboard
+      navigate(`/dashboard/${response.user.role}`);
+    } catch (err: any) {
+      setError(err.message || 'Signup failed');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('serene_user');
-    navigate('/');
+  const logout = async () => {
+    try {
+      // Call logout endpoint
+      await authService.logout();
+    } catch (err) {
+      // Continue with local logout even if API call fails
+      console.error('Logout error:', err);
+    } finally {
+      // Clear local state
+      setUser(null);
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      navigate('/');
+    }
+  };
+
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        error,
+        login,
+        signup,
+        logout,
+        updateUser,
+        isAuthenticated: !!user,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

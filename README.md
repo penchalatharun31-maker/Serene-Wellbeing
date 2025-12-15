@@ -1,155 +1,117 @@
-# Serene Wellbeing Hub 🧘‍♀️
+# 🌿 Serene Wellbeing Hub
 
-A comprehensive mental wellbeing platform connecting users with wellness experts for personalized sessions, powered by Google Gemini AI.
+A comprehensive mental health and wellbeing platform connecting users with licensed mental health experts, powered by Google Gemini AI for personalized recommendations and insights.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
-![React](https://img.shields.io/badge/react-19.2.0-blue.svg)
-![TypeScript](https://img.shields.io/badge/typescript-5.8.2-blue.svg)
+[![CI/CD](https://github.com/yourrepo/serene-wellbeing/workflows/Full%20Stack%20CI/CD/badge.svg)](https://github.com/yourrepo/serene-wellbeing/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
+[![React](https://img.shields.io/badge/react-19.2.0-blue)](https://reactjs.org)
+[![TypeScript](https://img.shields.io/badge/typescript-5.8.2-blue)](https://www.typescriptlang.org/)
 
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Quick Start](#quick-start)
-- [Documentation](#documentation)
-- [License](#license)
-
-## 🌟 Overview
-
-Serene Wellbeing Hub is a full-stack mental wellness platform that enables users to:
-- Browse and book sessions with verified wellness experts
-- Participate in individual or group wellness sessions
-- Access curated wellness resources
-- Track their wellness journey with AI-powered insights
-- Communicate with experts through real-time messaging
-
-## ✨ Features
+## 🎯 Features
 
 ### For Users
-- 🔍 **Browse Experts** - Find the perfect wellness expert by specialization, rating, and availability
-- 📅 **Book Sessions** - Schedule individual or group sessions with instant booking confirmation
-- 💬 **Real-time Messaging** - Chat directly with experts
-- 📊 **Analytics Dashboard** - Track your wellness journey with AI-generated insights
-- 🎟️ **Credit System** - Flexible payment options with credits or direct payment
-- 📚 **Resource Library** - Access articles, videos, and audio content
-- ⭐ **Rate & Review** - Share your experience and help others
+- 🔍 **AI-Powered Expert Matching** - Find the perfect mental health expert using Google Gemini AI
+- 📅 **Smart Booking System** - Schedule sessions with conflict detection and automated reminders
+- 💬 **Real-time Chat** - Secure messaging with experts via Socket.IO
+- 📊 **Progress Tracking** - Monitor your mental health journey with personalized analytics
+- 💳 **Secure Payments** - Stripe integration with credit system and transparent pricing
+- 📚 **Resource Library** - Access curated articles, videos, and wellness content
+- 👥 **Group Sessions** - Join group therapy sessions and workshops
 
 ### For Experts
-- 📋 **Professional Profiles** - Showcase certifications, education, and expertise
-- 📅 **Availability Management** - Set and manage your schedule
-- 💰 **Earnings Dashboard** - Track revenue, sessions, and performance
-- 📊 **Analytics** - Understand your peak hours, ratings, and client trends
-- 🤖 **AI-Powered Insights** - Get profile optimization suggestions
-- 📝 **Session Management** - Manage bookings and client information
+- 🗓️ **Calendar Management** - Manage availability and bookings effortlessly
+- 💰 **Automated Payouts** - Weekly payouts with transparent commission tracking
+- 📈 **Performance Analytics** - Track earnings, ratings, and session statistics
+- 🤖 **AI-Powered Insights** - Get profile optimization suggestions from Gemini AI
+- ⭐ **Review System** - Build reputation through client feedback
+- 📝 **Session Notes** - Secure note-taking with AI-generated summaries
 
-### Powered by Google Gemini AI 🤖
-- **Smart Recommendations** - AI matches users with perfect experts
-- **Wellness Insights** - Personalized journey analysis
-- **Content Generation** - AI-created wellness articles and tips
-- **Profile Optimization** - AI suggestions for expert profiles
-- **Feedback Analysis** - Extract insights from reviews
-- **Chat Assistance** - AI-powered support for users
+### For Companies
+- 👔 **Corporate Wellness** - Bulk employee access with custom pricing
+- 📊 **Usage Analytics** - Monitor employee engagement and utilization
+- 💼 **Credit Management** - Flexible credit allocation system
+- 🔐 **HIPAA Compliant** - Enterprise-grade security and privacy
 
-## 🛠️ Tech Stack
-
-### Frontend
-- **React 19.2** - UI framework
-- **TypeScript 5.8** - Type safety
-- **Vite 6.2** - Build tool
-- **Tailwind CSS 3** - Styling
-- **React Router 7** - Navigation
-- **Recharts 3.5** - Analytics charts
-- **Socket.IO Client** - Real-time features
-
-### Backend
-- **Node.js 18+** - Runtime
-- **Express.js** - Web framework
-- **TypeScript** - Type safety
-- **MongoDB** - Database
-- **Mongoose** - ODM
-- **Socket.IO** - Real-time communication
-- **JWT** - Authentication
-- **Stripe** - Payment processing
-- **Google Gemini AI** - AI integration
-- **Nodemailer** - Email service
-
-## 📁 Project Structure
+## 🏗️ Architecture
 
 ```
-Serene-Wellbeing/
-├── frontend/                 # React frontend application
-│   ├── src/                 # Source code
-│   ├── package.json
-│   └── vite.config.ts
-│
-├── backend/                  # Node.js backend API
-│   ├── src/                 # Source code
-│   ├── package.json
-│   ├── README.md            # Backend docs
-│   ├── API_GUIDE.md         # API reference
-│   └── DEPLOYMENT.md        # Deployment guide
-│
-├── SETUP_AND_RUN_GUIDE.md   # How to run
-└── package.json             # Root scripts
+┌─────────────────┐         ┌──────────────────┐         ┌─────────────────┐
+│                 │         │                  │         │                 │
+│  React Frontend │────────▶│  Express Backend │────────▶│    MongoDB      │
+│  (Vite + TS)    │         │  (Node.js + TS)  │         │                 │
+│                 │         │                  │         └─────────────────┘
+└─────────────────┘         └──────────────────┘                  │
+        │                            │                             │
+        │                            │                    ┌────────▼────────┐
+        │                    ┌───────▼────────┐          │     Redis       │
+        │                    │  Google Gemini │          │   (Caching)     │
+        │                    │      AI        │          └─────────────────┘
+        │                    └────────────────┘
+        │                            │
+        │                    ┌───────▼────────┐
+        └───────────────────▶│   Socket.IO    │
+                             │  (WebSocket)   │
+                             └────────────────┘
 ```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
-- MongoDB (local or Atlas)
-- Google Gemini API Key
-- Stripe Account (test mode)
+- Node.js 18+
+- Docker & Docker Compose
+- MongoDB 7.0+
+- Redis 7+
 
-### Installation
+### Local Development
 
-```bash
-# 1. Clone repository
-git clone https://github.com/penchalatharun31-maker/Serene-Wellbeing.git
-cd Serene-Wellbeing
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourrepo/serene-wellbeing.git
+   cd serene-wellbeing
+   ```
 
-# 2. Install all dependencies
-npm run install:all
+2. **Set up environment variables**
+   ```bash
+   # Backend
+   cp backend/.env.example backend/.env
+   # Edit backend/.env with your credentials
 
-# 3. Configure backend environment
-cd backend
-cp .env.example .env
-# Edit .env with your credentials
+   # Frontend
+   cp .env.example .env.development
+   # Edit .env.development
+   ```
 
-# 4. Configure frontend environment
-cd ../frontend
-touch .env.local
-# Add: VITE_API_URL=http://localhost:5000/api/v1
+3. **Start with Docker Compose**
+   ```bash
+   docker-compose -f docker-compose.dev.yml up
+   ```
 
-# 5. Run both frontend and backend
-cd ..
-npm run dev
-```
+   Or manually:
+   ```bash
+   # Backend
+   cd backend
+   npm install
+   npm run dev
 
-### Access Application
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000/api/v1
-- Health Check: http://localhost:5000/api/v1/health
+   # Frontend (new terminal)
+   npm install
+   npm run dev
+   ```
 
-## 📖 Documentation
+4. **Access the application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:5000
+   - API Docs: http://localhost:5000/api/v1/docs
 
-- **[Setup & Run Guide](SETUP_AND_RUN_GUIDE.md)** - Complete setup instructions
-- **[Backend README](backend/README.md)** - Backend documentation
-- **[API Guide](backend/API_GUIDE.md)** - Complete API reference
-- **[Deployment Guide](backend/DEPLOYMENT.md)** - Production deployment
-- **[Implementation Summary](BACKEND_IMPLEMENTATION_SUMMARY.md)** - Backend overview
-
-## 🔧 Development Scripts
+### Using the Root Package Manager
 
 ```bash
 # Install all dependencies (frontend + backend)
 npm run install:all
 
-# Run both frontend and backend
+# Run both services in development mode
 npm run dev
 
 # Run backend only
@@ -158,54 +120,198 @@ npm run dev:backend
 # Run frontend only
 npm run dev:frontend
 
-# Build for production
+# Build both for production
 npm run build
 ```
 
-## 🔐 Security Features
+## 📚 Documentation
+
+- **[Setup & Run Guide](SETUP_AND_RUN_GUIDE.md)** - Detailed setup instructions
+- **[Backend Implementation](BACKEND_IMPLEMENTATION_SUMMARY.md)** - Backend architecture overview
+- **[API Documentation](backend/API_GUIDE.md)** - Complete API reference
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production deployment instructions
+- **[Production Checklist](PRODUCTION_CHECKLIST.md)** - Pre-deployment checklist
+- **[Backend README](backend/README.md)** - Backend-specific documentation
+
+## 🧪 Testing
+
+### Backend Tests
+
+```bash
+cd backend
+
+# Run all tests
+npm test
+
+# Run with coverage
+npm run test
+
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests
+npm run test:integration
+
+# Watch mode
+npm run test:watch
+```
+
+### Frontend Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run with coverage
+npm test
+
+# Run E2E tests
+npm run test:e2e
+
+# Watch mode
+npm run test:watch
+```
+
+## 🏭 Production Deployment
+
+### Option 1: Docker Compose (Recommended)
+
+```bash
+# On production server
+git clone https://github.com/yourrepo/serene-wellbeing.git
+cd serene-wellbeing
+
+# Configure environment
+cp backend/.env.example backend/.env
+nano backend/.env
+
+# Deploy
+docker-compose up -d --build
+```
+
+### Option 2: CI/CD with GitHub Actions
+
+Push to `main` branch and GitHub Actions will automatically:
+- Run tests
+- Build Docker images
+- Deploy to production
+- Run health checks
+
+See [Deployment Guide](DEPLOYMENT_GUIDE.md) for detailed instructions.
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **React 19.2** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+- **React Router 7** - Routing
+- **Axios** - HTTP client
+- **Socket.IO Client** - WebSocket
+- **Tailwind CSS** - Styling
+- **Recharts** - Data visualization
+- **Lucide React** - Icons
+
+### Backend
+- **Node.js 18+** - Runtime
+- **Express.js** - Web framework
+- **TypeScript** - Type safety
+- **MongoDB + Mongoose** - Database
+- **Redis** - Caching & sessions
+- **Socket.IO** - Real-time communication
+- **JWT** - Authentication
+- **Stripe** - Payment processing
+- **Google Gemini AI** - AI features
+- **Nodemailer** - Email service
+- **Winston** - Logging
+- **Jest + Supertest** - Testing
+
+### DevOps
+- **Docker** - Containerization
+- **Docker Compose** - Orchestration
+- **Nginx** - Reverse proxy
+- **GitHub Actions** - CI/CD
+- **Certbot** - SSL certificates
+
+## 📊 Project Structure
+
+```
+serene-wellbeing/
+├── backend/                 # Backend API
+│   ├── src/
+│   │   ├── controllers/    # Request handlers
+│   │   ├── models/         # Database models
+│   │   ├── routes/         # API routes
+│   │   ├── middleware/     # Express middleware
+│   │   ├── services/       # Business logic
+│   │   ├── config/         # Configuration
+│   │   └── utils/          # Utilities
+│   ├── __tests__/          # Backend tests
+│   ├── Dockerfile          # Backend Docker image
+│   └── package.json
+├── src/                    # Frontend source
+├── components/             # React components
+├── pages/                  # Page components
+├── context/                # React context
+├── hooks/                  # Custom hooks
+├── services/               # API client services
+├── e2e/                    # E2E tests
+├── .github/                # GitHub Actions workflows
+├── scripts/                # Deployment scripts
+├── docker-compose.yml      # Production setup
+├── docker-compose.dev.yml  # Development setup
+└── Dockerfile              # Frontend Docker image
+```
+
+## 🔒 Security
 
 - JWT-based authentication with refresh tokens
 - bcrypt password hashing (12 rounds)
 - Rate limiting on all endpoints
-- Input validation and sanitization
-- CORS configuration
+- CORS protection
 - Helmet.js security headers
-- SQL injection prevention
+- Input validation and sanitization
+- File upload restrictions
 - XSS protection
+- CSRF protection
+- HTTPS enforcement in production
 
-## 📦 Building for Production
+## 🤝 Contributing
 
-```bash
-# Build both
-npm run build
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-# Or separately
-npm run build:backend
-npm run build:frontend
-```
+## 📝 License
 
-## 🚀 Deployment
-
-See [DEPLOYMENT.md](backend/DEPLOYMENT.md) for detailed deployment instructions.
-
-Quick deployment options:
-- **Backend**: AWS EC2, DigitalOcean, Railway, Heroku
-- **Frontend**: Vercel, Netlify, Cloudflare Pages
-- **Database**: MongoDB Atlas
-
-## 📄 License
-
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- Google Gemini AI for powering intelligent recommendations
+- Google Gemini AI for intelligent recommendations
 - Stripe for secure payment processing
-- MongoDB for flexible data storage
-- All the amazing open-source libraries used in this project
+- MongoDB for robust data storage
+- All contributors and supporters
+
+## 📞 Support
+
+- **Email:** support@serene-wellbeing.com
+- **Documentation:** https://docs.serene-wellbeing.com
+- **Issues:** https://github.com/yourrepo/serene-wellbeing/issues
+
+## 🗺️ Roadmap
+
+- [ ] Video call integration
+- [ ] Mobile apps (iOS & Android)
+- [ ] Multi-language support
+- [ ] Advanced AI chatbot
+- [ ] Wearable device integration
+- [ ] Community forums
+- [ ] Peer support groups
+- [ ] Advanced analytics dashboard
 
 ---
 
-**Built with ❤️ for mental wellbeing**
-
-**For detailed setup instructions, see [SETUP_AND_RUN_GUIDE.md](SETUP_AND_RUN_GUIDE.md)**
+**Built with ❤️ for mental health and wellbeing**
