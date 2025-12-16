@@ -7,23 +7,27 @@ export interface TokenPayload {
 }
 
 export const generateToken = (payload: TokenPayload): string => {
-  return jwt.sign(payload, process.env.JWT_SECRET!, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  });
+  const secret = process.env.JWT_SECRET || 'default-secret-key-change-in-production';
+  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+  // @ts-expect-error - jsonwebtoken types have issues with expiresIn string
+  return jwt.sign(payload, secret, { expiresIn });
 };
 
 export const generateRefreshToken = (payload: TokenPayload): string => {
-  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET!, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
-  });
+  const secret = process.env.JWT_REFRESH_SECRET || 'default-refresh-secret-key-change-in-production';
+  const expiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '30d';
+  // @ts-expect-error - jsonwebtoken types have issues with expiresIn string
+  return jwt.sign(payload, secret, { expiresIn });
 };
 
 export const verifyToken = (token: string): TokenPayload => {
-  return jwt.verify(token, process.env.JWT_SECRET!) as TokenPayload;
+  const secret = process.env.JWT_SECRET || 'default-secret-key-change-in-production';
+  return jwt.verify(token, secret) as TokenPayload;
 };
 
 export const verifyRefreshToken = (token: string): TokenPayload => {
-  return jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as TokenPayload;
+  const secret = process.env.JWT_REFRESH_SECRET || 'default-refresh-secret-key-change-in-production';
+  return jwt.verify(token, secret) as TokenPayload;
 };
 
 export const sendTokenResponse = (

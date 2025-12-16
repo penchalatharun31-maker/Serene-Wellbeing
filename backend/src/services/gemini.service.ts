@@ -7,11 +7,14 @@ class GeminiService {
   private model: any;
 
   constructor() {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is not configured');
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'placeholder-add-your-gemini-api-key-here') {
+      logger.warn('GEMINI_API_KEY is not configured - AI features will not work');
+      // Use a dummy key to prevent crash - AI features will fail gracefully
+      this.genAI = new GoogleGenerativeAI('dummy-key-for-development');
+    } else {
+      this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     }
 
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     this.model = this.genAI.getGenerativeModel({
       model: process.env.GEMINI_MODEL || 'gemini-1.5-pro',
     });

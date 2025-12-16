@@ -17,9 +17,7 @@ class MoodTrackingService {
       // Generate AI insights if notes provided
       let aiInsights;
       if (data.notes && data.notes.trim().length > 10) {
-        aiInsights = await this.analyzeM
-
-oodNotes(data.notes, data.mood, data.emotions);
+        aiInsights = await this.analyzeMoodNotes(data.notes, data.mood, data.emotions);
       }
 
       const moodEntry = new MoodEntry({
