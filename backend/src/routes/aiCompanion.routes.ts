@@ -1,6 +1,6 @@
 import express from 'express';
 import * as aiCompanionController from '../controllers/aiCompanion.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
 

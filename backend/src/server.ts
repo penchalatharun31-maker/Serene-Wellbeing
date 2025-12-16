@@ -84,7 +84,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // API routes
 const API_VERSION = process.env.API_VERSION || 'v1';
 
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
   res.json({
     success: true,
     message: 'Serene Wellbeing API',
@@ -93,7 +93,7 @@ app.get('/', (req, res) => {
   });
 });
 
-app.get(`/api/${API_VERSION}`, (req, res) => {
+app.get(`/api/${API_VERSION}`, (_req, res) => {
   res.json({
     success: true,
     message: 'Serene Wellbeing API is running',
@@ -117,7 +117,7 @@ app.use(`/api/${API_VERSION}/ai-companion`, aiCompanionRoutes);
 app.use(`/api/${API_VERSION}/mood`, moodRoutes);
 
 // Health check endpoint
-app.get(`/api/${API_VERSION}/health`, (req, res) => {
+app.get(`/api/${API_VERSION}/health`, (_req, res) => {
   res.json({
     success: true,
     status: 'healthy',
