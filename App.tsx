@@ -15,11 +15,16 @@ import Invoice from './pages/Invoice';
 import CommissionSplit from './pages/CommissionSplit';
 import { Referrals, RefundPolicy, RateSession, LanguageSettings, AccessibilitySettings } from './pages/ExtraPages';
 import { AdminOverview, ExpertApprovals, AdminCompanies, AdminBookings, Disputes, AdminSettings, CommissionTracking, PayoutsManagement, PromoManagement, CMSManagement } from './pages/AdminDashboard';
-import { 
+import {
     UserDashboard, UserSessions, UserSettings,
     ExpertDashboard, ExpertBookings, ExpertClients, ExpertEarnings, ExpertSettings, ExpertAvailability, ExpertCreateGroupSession,
-    CompanyDashboard, CompanyEmployees, CompanyCredits, CompanySettings 
+    CompanyDashboard, CompanyEmployees, CompanyCredits, CompanySettings
 } from './pages/Dashboards';
+import AICompanion from './pages/AICompanion';
+import MoodTracker from './pages/MoodTracker';
+import Journal from './pages/Journal';
+import WellnessChallenges from './pages/WellnessChallenges';
+import ContentLibrary from './pages/ContentLibrary';
 
 // Layout wrapper for dashboard pages to include Sidebar
 const DashboardLayout: React.FC<{ type: 'user' | 'expert' | 'company' | 'super_admin' }> = ({ type }) => (
@@ -141,12 +146,17 @@ const App: React.FC = () => {
             <Route element={
                 <div className="min-h-screen bg-gray-50">
                     <Navbar />
-                    <div className="pt-6">
+                    <div className="pt-6 px-4 sm:px-6 lg:px-8">
                         <Outlet />
                     </div>
                 </div>
             }>
-                <Route path="/messages" element={<Messages />} />
+                <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+                <Route path="/ai-companion" element={<ProtectedRoute><AICompanion /></ProtectedRoute>} />
+                <Route path="/mood-tracker" element={<ProtectedRoute><MoodTracker /></ProtectedRoute>} />
+                <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
+                <Route path="/challenges" element={<ProtectedRoute><WellnessChallenges /></ProtectedRoute>} />
+                <Route path="/content-library" element={<ProtectedRoute><ContentLibrary /></ProtectedRoute>} />
             </Route>
 
         </Routes>

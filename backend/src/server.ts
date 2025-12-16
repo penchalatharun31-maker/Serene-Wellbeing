@@ -27,6 +27,8 @@ import resourceRoutes from './routes/resource.routes';
 import groupSessionRoutes from './routes/groupSession.routes';
 import notificationRoutes from './routes/notification.routes';
 import uploadRoutes from './routes/upload.routes';
+import aiCompanionRoutes from './routes/aiCompanion.routes';
+import moodRoutes from './routes/mood.routes';
 
 // Load environment variables
 dotenv.config();
@@ -111,6 +113,8 @@ app.use(`/api/${API_VERSION}/resources`, resourceRoutes);
 app.use(`/api/${API_VERSION}/group-sessions`, groupSessionRoutes);
 app.use(`/api/${API_VERSION}/notifications`, notificationRoutes);
 app.use(`/api/${API_VERSION}/upload`, uploadRoutes);
+app.use(`/api/${API_VERSION}/ai-companion`, aiCompanionRoutes);
+app.use(`/api/${API_VERSION}/mood`, moodRoutes);
 
 // Health check endpoint
 app.get(`/api/${API_VERSION}/health`, (req, res) => {
