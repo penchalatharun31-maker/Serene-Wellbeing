@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Menu, X, Bell, LayoutDashboard, Users, Calendar, Settings, CreditCard, LogOut, User as UserIcon, BookOpen, MessageCircle, ShieldAlert, BarChart2, Briefcase, Clock, PlusCircle, FileText, Tag, Edit } from 'lucide-react';
+import { Menu, X, Bell, LayoutDashboard, Users, Calendar, Settings, CreditCard, LogOut, User as UserIcon, BookOpen, MessageCircle, ShieldAlert, BarChart2, Briefcase, Clock, PlusCircle, FileText, Tag, Edit, TrendingUp } from 'lucide-react';
 import { Button } from './UI';
 
 // Centralized Navigation Configuration
@@ -37,6 +37,7 @@ export const NAVIGATION_LINKS = {
     ],
     super_admin: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard/admin' },
+        { name: 'Founder Metrics', icon: TrendingUp, path: '/dashboard/admin/founder' },
         { name: 'Experts', icon: Users, path: '/dashboard/admin/experts' },
         { name: 'Companies', icon: Briefcase, path: '/dashboard/admin/companies' },
         { name: 'Bookings', icon: Calendar, path: '/dashboard/admin/bookings' },

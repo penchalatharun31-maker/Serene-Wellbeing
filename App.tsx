@@ -25,6 +25,7 @@ import MoodTracker from './pages/MoodTracker';
 import Journal from './pages/Journal';
 import WellnessChallenges from './pages/WellnessChallenges';
 import ContentLibrary from './pages/ContentLibrary';
+import FounderDashboard from './pages/FounderDashboard';
 
 // Layout wrapper for dashboard pages to include Sidebar
 const DashboardLayout: React.FC<{ type: 'user' | 'expert' | 'company' | 'super_admin' }> = ({ type }) => (
@@ -130,6 +131,7 @@ const App: React.FC = () => {
                 }
             >
                 <Route index element={<AdminOverview />} />
+                <Route path="founder" element={<FounderDashboard />} />
                 <Route path="experts" element={<ExpertApprovals />} />
                 <Route path="companies" element={<AdminCompanies />} />
                 <Route path="bookings" element={<AdminBookings />} />
