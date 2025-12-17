@@ -12,8 +12,7 @@ describe('Authentication Integration Tests', () => {
   describe('POST /api/v1/auth/register', () => {
     it('should register a new user successfully', async () => {
       const userData = {
-        firstName: 'John',
-        lastName: 'Doe',
+        name: 'John Doe',
         email: 'john@example.com',
         password: 'Password123!',
         phone: '+1234567890',
@@ -36,8 +35,7 @@ describe('Authentication Integration Tests', () => {
 
     it('should not register user with existing email', async () => {
       const userData = {
-        firstName: 'Jane',
-        lastName: 'Doe',
+        name: 'Jane Doe',
         email: 'existing@example.com',
         password: 'Password123!',
         phone: '+1234567891',
@@ -74,8 +72,7 @@ describe('Authentication Integration Tests', () => {
       const response = await request(app)
         .post('/api/v1/auth/register')
         .send({
-          firstName: 'John',
-          lastName: 'Doe',
+          name: 'John Doe',
           email: 'invalid-email',
           password: 'Password123!',
           phone: '+1234567892',
@@ -90,8 +87,7 @@ describe('Authentication Integration Tests', () => {
       const response = await request(app)
         .post('/api/v1/auth/register')
         .send({
-          firstName: 'John',
-          lastName: 'Doe',
+          name: 'John Doe',
           email: 'weak@example.com',
           password: '123', // Weak password
           phone: '+1234567893',
@@ -108,8 +104,7 @@ describe('Authentication Integration Tests', () => {
     beforeEach(async () => {
       // Create a test user
       await User.create({
-        firstName: 'Test',
-        lastName: 'User',
+        name: 'Test User',
         email: 'test@example.com',
         password: 'Password123!',
         phone: '+1234567894',
@@ -157,8 +152,8 @@ describe('Authentication Integration Tests', () => {
       expect(response.body.success).toBe(false);
     });
 
-    it('should update lastLogin on successful login', async () => {
-      await request(app)
+    it('should return user data and tokens on successful login', async () => {
+      const response = await request(app)
         .post('/api/v1/auth/login')
         .send({
           email: 'test@example.com',
@@ -166,17 +161,18 @@ describe('Authentication Integration Tests', () => {
         })
         .expect(200);
 
-      const user = await User.findOne({ email: 'test@example.com' });
-      expect(user?.lastLogin).toBeDefined();
-      expect(user?.lastLogin).toBeInstanceOf(Date);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user).toBeDefined();
+      expect(response.body.data.user.email).toBe('test@example.com');
+      expect(response.body.data.accessToken).toBeDefined();
+      expect(response.body.data.refreshToken).toBeDefined();
     });
   });
 
   describe('POST /api/v1/auth/forgot-password', () => {
     beforeEach(async () => {
       await User.create({
-        firstName: 'Test',
-        lastName: 'User',
+        name: 'Test User',
         email: 'reset@example.com',
         password: 'Password123!',
         phone: '+1234567895',

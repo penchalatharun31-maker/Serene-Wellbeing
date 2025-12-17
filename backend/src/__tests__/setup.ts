@@ -5,8 +5,12 @@ let mongoServer: MongoMemoryServer;
 
 // Setup before all tests
 beforeAll(async () => {
-  // Start in-memory MongoDB server
-  mongoServer = await MongoMemoryServer.create();
+  // Start in-memory MongoDB server with a stable version
+  mongoServer = await MongoMemoryServer.create({
+    binary: {
+      version: '5.0.14',
+    },
+  });
   const mongoUri = mongoServer.getUri();
 
   // Connect to the in-memory database
