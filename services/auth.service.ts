@@ -9,7 +9,7 @@ export interface RegisterData {
   name: string;
   email: string;
   password: string;
-  role?: 'user' | 'expert' | 'company';
+  role?: 'user' | 'expert' | 'company' | 'super_admin';
   phone?: string;
   dateOfBirth?: string;
 }
@@ -22,7 +22,7 @@ export interface AuthResponse {
     id: string;
     name: string;
     email: string;
-    role: string;
+    role: 'user' | 'expert' | 'company' | 'super_admin';
     avatar?: string;
     credits: number;
     isVerified: boolean;

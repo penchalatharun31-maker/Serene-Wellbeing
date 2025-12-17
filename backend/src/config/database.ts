@@ -3,6 +3,10 @@ import logger from '../utils/logger';
 
 const connectDB = async (): Promise<void> => {
   try {
+    if (!process.env.MONGODB_URI || process.env.MONGODB_URI === 'mongodb://localhost:27017/serene-wellbeing') {
+      logger.warn('MongoDB URI not configured or using default localhost - attempting connection...');
+    }
+
     const conn = await mongoose.connect(process.env.MONGODB_URI!, {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
@@ -28,7 +32,11 @@ const connectDB = async (): Promise<void> => {
     });
   } catch (error: any) {
     logger.error('MongoDB connection failed:', error.message);
-    process.exit(1);
+    logger.warn('Server will start without database - API calls will fail');
+    // Don't exit in development - allow server to start without DB
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
   }
 };
 

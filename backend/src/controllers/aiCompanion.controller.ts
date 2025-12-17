@@ -1,10 +1,11 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 import aiCompanionService from '../services/aiCompanion.service';
 
 /**
  * Start or continue chat with AI companion
  */
-export const chat = async (req: Request, res: Response) => {
+export const chat = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { message, sessionId } = req.body;
@@ -34,7 +35,7 @@ export const chat = async (req: Request, res: Response) => {
 /**
  * Get conversation history
  */
-export const getConversations = async (req: Request, res: Response) => {
+export const getConversations = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -57,7 +58,7 @@ export const getConversations = async (req: Request, res: Response) => {
 /**
  * End conversation
  */
-export const endConversation = async (req: Request, res: Response) => {
+export const endConversation = async (req: AuthRequest, res: Response) => {
   try {
     const { sessionId } = req.params;
 

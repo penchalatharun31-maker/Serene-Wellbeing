@@ -221,8 +221,9 @@ export const getUserAnalytics = async (
 
       // Calculate journey duration in months
       const firstSession = completedSessions[completedSessions.length - 1];
+      const firstSessionDate = firstSession?.completedAt || firstSession?.createdAt || now;
       const monthsDiff = Math.ceil(
-        (now.getTime() - new Date(firstSession.completedAt).getTime()) /
+        (now.getTime() - new Date(firstSessionDate).getTime()) /
           (1000 * 60 * 60 * 24 * 30)
       );
 

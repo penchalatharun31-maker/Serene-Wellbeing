@@ -1,11 +1,12 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 import moodTrackingService from '../services/moodTracking.service';
 import MoodEntry from '../models/MoodEntry';
 
 /**
  * Create mood entry
  */
-export const createMoodEntry = async (req: Request, res: Response) => {
+export const createMoodEntry = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const moodData = req.body;
@@ -37,7 +38,7 @@ export const createMoodEntry = async (req: Request, res: Response) => {
 /**
  * Get mood analytics
  */
-export const getMoodAnalytics = async (req: Request, res: Response) => {
+export const getMoodAnalytics = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const days = parseInt(req.query.days as string) || 30;
@@ -60,7 +61,7 @@ export const getMoodAnalytics = async (req: Request, res: Response) => {
 /**
  * Get mood calendar
  */
-export const getMoodCalendar = async (req: Request, res: Response) => {
+export const getMoodCalendar = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
@@ -84,7 +85,7 @@ export const getMoodCalendar = async (req: Request, res: Response) => {
 /**
  * Get recent mood entries
  */
-export const getRecentMoods = async (req: Request, res: Response) => {
+export const getRecentMoods = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -109,7 +110,7 @@ export const getRecentMoods = async (req: Request, res: Response) => {
 /**
  * Update mood entry
  */
-export const updateMoodEntry = async (req: Request, res: Response) => {
+export const updateMoodEntry = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -143,7 +144,7 @@ export const updateMoodEntry = async (req: Request, res: Response) => {
 /**
  * Delete mood entry
  */
-export const deleteMoodEntry = async (req: Request, res: Response) => {
+export const deleteMoodEntry = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;

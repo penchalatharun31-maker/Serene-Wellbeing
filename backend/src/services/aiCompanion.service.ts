@@ -251,9 +251,8 @@ Provide a JSON response with:
     userId: string,
     detection: CrisisDetectionResult
   ): Promise<{ message: string; resources: any[] }> {
-    // Get user info
-    const user = await User.findById(userId);
-    const country = user?.preferences?.country || 'US';
+    // Get user info - default to US for crisis resources
+    const country = 'US';
 
     // Get crisis resources
     const resources = await CrisisResource.find({
@@ -316,7 +315,7 @@ You matter, and there are people who want to help you.`;
       concerns: recentJournals
         .flatMap(j => j.aiAnalysis?.areasOfConcern || [])
         .slice(0, 3),
-      userName: user?.firstName || 'there',
+      userName: user?.name || 'there',
       preferences: user?.preferences
     };
   }
@@ -328,7 +327,7 @@ You matter, and there are people who want to help you.`;
     messages: IMessage[],
     context: any,
     crisisDetection: CrisisDetectionResult
-  ): Promise<{ response: string; sentiment: string; topics: string[] }> {
+  ): Promise<{ response: string; sentiment: 'positive' | 'negative' | 'neutral' | 'concerning'; topics: string[] }> {
     const systemPrompt = `You are Serene, an empathetic AI mental health companion. Your role is to:
 - Provide emotional support and active listening
 - Offer evidence-based coping strategies
