@@ -29,6 +29,7 @@ import notificationRoutes from './routes/notification.routes';
 import uploadRoutes from './routes/upload.routes';
 import aiCompanionRoutes from './routes/aiCompanion.routes';
 import moodRoutes from './routes/mood.routes';
+import blogRoutes from './routes/blog.routes';
 
 // Load environment variables
 dotenv.config();
@@ -115,6 +116,7 @@ app.use(`/api/${API_VERSION}/notifications`, notificationRoutes);
 app.use(`/api/${API_VERSION}/upload`, uploadRoutes);
 app.use(`/api/${API_VERSION}/ai-companion`, aiCompanionRoutes);
 app.use(`/api/${API_VERSION}/mood`, moodRoutes);
+app.use(`/api/${API_VERSION}/blog`, blogRoutes);
 
 // Health check endpoint
 app.get(`/api/${API_VERSION}/health`, (_req, res) => {

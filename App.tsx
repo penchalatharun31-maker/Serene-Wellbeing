@@ -26,6 +26,8 @@ import Journal from './pages/Journal';
 import WellnessChallenges from './pages/WellnessChallenges';
 import ContentLibrary from './pages/ContentLibrary';
 import FounderDashboard from './pages/FounderDashboard';
+import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
 
 // Layout wrapper for dashboard pages to include Sidebar
 const DashboardLayout: React.FC<{ type: 'user' | 'expert' | 'company' | 'super_admin' }> = ({ type }) => (
@@ -67,6 +69,8 @@ const App: React.FC = () => {
                 <Route path="/expert/:id" element={<ExpertProfile />} />
                 <Route path="/resources" element={<Resources />} />
                 <Route path="/group-sessions" element={<GroupSessions />} />
+                <Route path="/blog" element={<Blog />} />
+                <Route path="/blog/:slug" element={<BlogPost />} />
                 <Route path="/refund-policy" element={<RefundPolicy />} />
                 <Route path="/referrals" element={<Referrals />} />
                 <Route path="/rate-session" element={<RateSession />} />

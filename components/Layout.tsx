@@ -79,6 +79,9 @@ export const Navbar: React.FC = () => {
               <Link to="/resources" className={`text-base font-medium transition-colors hover:text-primary ${location.pathname.includes('/resources') ? 'text-primary' : 'text-gray-600'}`}>
                 Resources
               </Link>
+              <Link to="/blog" className={`text-base font-medium transition-colors hover:text-primary ${location.pathname.includes('/blog') ? 'text-primary' : 'text-gray-600'}`}>
+                Blog
+              </Link>
             </div>
           </div>
           
@@ -145,6 +148,7 @@ export const Navbar: React.FC = () => {
             <Link to="/browse" onClick={() => setIsOpen(false)} className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-primary hover:text-primary">Browse Experts</Link>
             <Link to="/dashboard/company" onClick={() => setIsOpen(false)} className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-primary hover:text-primary">For Teams</Link>
             <Link to="/resources" onClick={() => setIsOpen(false)} className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-primary hover:text-primary">Resources</Link>
+            <Link to="/blog" onClick={() => setIsOpen(false)} className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-primary hover:text-primary">Blog</Link>
             
             {isAuthenticated && user ? (
                 <>
@@ -241,7 +245,7 @@ export const Footer: React.FC = () => (
           <ul className="mt-4 space-y-4">
             <li><a href="#" className="text-base text-gray-600 hover:text-primary">About</a></li>
             <li><a href="#" className="text-base text-gray-600 hover:text-primary">Careers</a></li>
-            <li><a href="#" className="text-base text-gray-600 hover:text-primary">Blog</a></li>
+            <li><Link to="/blog" className="text-base text-gray-600 hover:text-primary">Blog</Link></li>
           </ul>
         </div>
         <div>
