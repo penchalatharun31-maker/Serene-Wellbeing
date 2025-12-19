@@ -59,7 +59,6 @@ const BlogPostSchema = new Schema<IBlogPost>(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
     },
     content: {
       type: String,
@@ -74,7 +73,6 @@ const BlogPostSchema = new Schema<IBlogPost>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
     category: {
       type: String,
@@ -93,12 +91,10 @@ const BlogPostSchema = new Schema<IBlogPost>(
         'Success Stories',
         'Company News',
       ],
-      index: true,
     },
     tags: {
       type: [String],
       default: [],
-      index: true,
     },
     featuredImage: {
       type: String,
@@ -112,7 +108,6 @@ const BlogPostSchema = new Schema<IBlogPost>(
       type: String,
       enum: ['draft', 'published', 'archived'],
       default: 'draft',
-      index: true,
     },
     views: {
       type: Number,
