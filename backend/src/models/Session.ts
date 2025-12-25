@@ -10,7 +10,9 @@ export interface ISession extends Document {
   duration: number;
   price: number;
   paymentStatus: 'pending' | 'paid' | 'refunded' | 'failed';
-  paymentIntentId?: string;
+  paymentIntentId?: string; // Legacy Stripe field (deprecated)
+  paymentOrderId?: string; // Razorpay Order ID
+  razorpayPaymentId?: string; // Razorpay Payment ID
   transactionId?: string;
   meetingLink?: string;
   notes?: string;
@@ -78,7 +80,9 @@ const SessionSchema = new Schema<ISession>(
       enum: ['pending', 'paid', 'refunded', 'failed'],
       default: 'pending',
     },
-    paymentIntentId: String,
+    paymentIntentId: String, // Legacy Stripe field (deprecated)
+    paymentOrderId: String, // Razorpay Order ID
+    razorpayPaymentId: String, // Razorpay Payment ID
     transactionId: String,
     meetingLink: String,
     notes: {

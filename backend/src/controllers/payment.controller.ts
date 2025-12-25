@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
-import Stripe from 'stripe';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
 import Session from '../models/Session';
 import User from '../models/User';
 import Transaction from '../models/Transaction';
@@ -7,11 +8,16 @@ import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../utils/errors';
 import logger from '../utils/logger';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-04-10',
+// Initialize Razorpay
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID!,
+  key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
 
-export const createPaymentIntent = async (
+/**
+ * Create Razorpay Order for Session Booking
+ */
+export const createPaymentOrder = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
@@ -30,54 +36,67 @@ export const createPaymentIntent = async (
       throw new AppError('Not authorized', 403);
     }
 
-    // Create payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency: 'usd',
-      metadata: {
+    // Create Razorpay order
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100), // Convert to paise (INR smallest unit)
+      currency: 'INR',
+      receipt: `session_${session._id.toString()}`,
+      notes: {
         sessionId: session._id.toString(),
         userId: req.user!._id.toString(),
       },
     });
 
-    // Update session with payment intent
-    session.paymentIntentId = paymentIntent.id;
+    // Update session with order ID
+    session.paymentOrderId = order.id;
     await session.save();
 
     res.status(200).json({
       success: true,
-      clientSecret: paymentIntent.client_secret,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: process.env.RAZORPAY_KEY_ID,
     });
   } catch (error: any) {
-    logger.error('Payment intent creation failed:', error);
+    logger.error('Payment order creation failed:', error);
     next(new AppError('Payment processing failed', 500));
   }
 };
 
-export const confirmPayment = async (
+/**
+ * Verify Razorpay Payment Signature
+ */
+export const verifyPayment = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { paymentIntentId } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-    // Retrieve payment intent from Stripe
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    // Verify signature
+    const text = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+      .update(text)
+      .digest('hex');
 
-    if (paymentIntent.status !== 'succeeded') {
-      throw new AppError('Payment not successful', 400);
+    if (expectedSignature !== razorpay_signature) {
+      throw new AppError('Invalid payment signature', 400);
     }
 
-    // Update session
-    const session = await Session.findOne({ paymentIntentId });
+    // Find session by order ID
+    const session = await Session.findOne({ paymentOrderId: razorpay_order_id });
 
     if (!session) {
       throw new AppError('Session not found', 404);
     }
 
+    // Update session
     session.paymentStatus = 'paid';
     session.status = 'confirmed';
+    session.razorpayPaymentId = razorpay_payment_id;
     await session.save();
 
     // Update transaction
@@ -85,22 +104,26 @@ export const confirmPayment = async (
       { sessionId: session._id },
       {
         status: 'completed',
-        stripeChargeId: paymentIntent.id,
+        razorpayPaymentId: razorpay_payment_id,
+        razorpayOrderId: razorpay_order_id,
         processedAt: new Date(),
       }
     );
 
     res.status(200).json({
       success: true,
-      message: 'Payment confirmed',
+      message: 'Payment verified successfully',
       session,
     });
   } catch (error: any) {
-    logger.error('Payment confirmation failed:', error);
-    next(new AppError('Payment confirmation failed', 500));
+    logger.error('Payment verification failed:', error);
+    next(new AppError('Payment verification failed', 500));
   }
 };
 
+/**
+ * Purchase Credits (Company/User)
+ */
 export const purchaseCredits = async (
   req: AuthRequest,
   res: Response,
@@ -113,11 +136,12 @@ export const purchaseCredits = async (
       throw new AppError('Amount and credits are required', 400);
     }
 
-    // Create payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
+    // Create Razorpay order
+    const order = await razorpay.orders.create({
       amount: Math.round(amount * 100),
-      currency: 'usd',
-      metadata: {
+      currency: 'INR',
+      receipt: `credits_${req.user!._id.toString()}_${Date.now()}`,
+      notes: {
         userId: req.user!._id.toString(),
         credits: credits.toString(),
         type: 'credit_purchase',
@@ -126,8 +150,10 @@ export const purchaseCredits = async (
 
     res.status(200).json({
       success: true,
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: process.env.RAZORPAY_KEY_ID,
     });
   } catch (error: any) {
     logger.error('Credit purchase failed:', error);
@@ -135,21 +161,34 @@ export const purchaseCredits = async (
   }
 };
 
-export const confirmCreditPurchase = async (
+/**
+ * Verify Credit Purchase Payment
+ */
+export const verifyCreditPurchase = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { paymentIntentId } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, credits } = req.body;
 
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    // Verify signature
+    const text = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+      .update(text)
+      .digest('hex');
 
-    if (paymentIntent.status !== 'succeeded') {
-      throw new AppError('Payment not successful', 400);
+    if (expectedSignature !== razorpay_signature) {
+      throw new AppError('Invalid payment signature', 400);
     }
 
-    const credits = parseInt(paymentIntent.metadata.credits);
+    // Fetch payment details from Razorpay
+    const payment = await razorpay.payments.fetch(razorpay_payment_id);
+
+    if (payment.status !== 'captured' && payment.status !== 'authorized') {
+      throw new AppError('Payment not successful', 400);
+    }
 
     // Update user credits
     const user = await User.findById(req.user!._id);
@@ -164,11 +203,12 @@ export const confirmCreditPurchase = async (
     await Transaction.create({
       userId: user._id,
       type: 'credit_purchase',
-      amount: paymentIntent.amount / 100,
-      currency: 'usd',
+      amount: payment.amount / 100,
+      currency: 'INR',
       status: 'completed',
-      paymentMethod: 'card',
-      stripeChargeId: paymentIntent.id,
+      paymentMethod: payment.method,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpayOrderId: razorpay_order_id,
       metadata: {
         description: `Purchased ${credits} credits`,
       },
@@ -181,11 +221,14 @@ export const confirmCreditPurchase = async (
       credits: user.credits,
     });
   } catch (error: any) {
-    logger.error('Credit purchase confirmation failed:', error);
-    next(new AppError('Credit purchase confirmation failed', 500));
+    logger.error('Credit purchase verification failed:', error);
+    next(new AppError('Credit purchase verification failed', 500));
   }
 };
 
+/**
+ * Get Payment History
+ */
 export const getPaymentHistory = async (
   req: AuthRequest,
   res: Response,
@@ -220,6 +263,9 @@ export const getPaymentHistory = async (
   }
 };
 
+/**
+ * Request Refund
+ */
 export const requestRefund = async (
   req: AuthRequest,
   res: Response,
@@ -244,14 +290,20 @@ export const requestRefund = async (
       throw new AppError('Session already refunded', 400);
     }
 
-    if (!session.paymentIntentId) {
+    if (!session.razorpayPaymentId) {
       throw new AppError('No payment found for this session', 400);
     }
 
-    // Process refund through Stripe
-    const refund = await stripe.refunds.create({
-      payment_intent: session.paymentIntentId,
-      reason: 'requested_by_customer',
+    // Fetch payment details
+    const payment = await razorpay.payments.fetch(session.razorpayPaymentId);
+
+    // Process refund through Razorpay
+    const refund = await razorpay.payments.refund(session.razorpayPaymentId, {
+      amount: payment.amount, // Full refund
+      notes: {
+        reason,
+        sessionId: session._id.toString(),
+      },
     });
 
     // Update session
@@ -265,12 +317,14 @@ export const requestRefund = async (
       expertId: session.expertId,
       sessionId: session._id,
       type: 'refund',
-      amount: session.price,
+      amount: refund.amount / 100,
+      currency: 'INR',
       status: 'completed',
-      paymentMethod: 'card',
-      stripeChargeId: refund.id,
+      paymentMethod: payment.method,
+      razorpayPaymentId: refund.id,
       metadata: {
         description: `Refund for session: ${reason}`,
+        originalPaymentId: session.razorpayPaymentId,
       },
       processedAt: new Date(),
     });
@@ -286,63 +340,76 @@ export const requestRefund = async (
   }
 };
 
+/**
+ * Razorpay Webhook Handler
+ */
 export const webhookHandler = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const sig = req.headers['stripe-signature'] as string;
-
-  let event: Stripe.Event;
-
   try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-  } catch (err: any) {
-    logger.error('Webhook signature verification failed:', err.message);
-    res.status(400).send(`Webhook Error: ${err.message}`);
-    return;
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET!;
+    const signature = req.headers['x-razorpay-signature'] as string;
+
+    // Verify webhook signature
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+
+    if (expectedSignature !== signature) {
+      logger.error('Webhook signature verification failed');
+      res.status(400).send('Invalid signature');
+      return;
+    }
+
+    const event = req.body.event;
+    const payload = req.body.payload;
+
+    // Handle the event
+    switch (event) {
+      case 'payment.captured':
+        logger.info(`Payment ${payload.payment.entity.id} captured`);
+
+        // Auto-confirm payment if not already confirmed
+        const session = await Session.findOne({
+          paymentOrderId: payload.payment.entity.order_id,
+        });
+
+        if (session && session.paymentStatus !== 'paid') {
+          session.paymentStatus = 'paid';
+          session.status = 'confirmed';
+          session.razorpayPaymentId = payload.payment.entity.id;
+          await session.save();
+        }
+        break;
+
+      case 'payment.failed':
+        logger.error(`Payment ${payload.payment.entity.id} failed`);
+
+        // Update session status
+        const failedSession = await Session.findOne({
+          paymentOrderId: payload.payment.entity.order_id,
+        });
+
+        if (failedSession) {
+          failedSession.paymentStatus = 'failed';
+          await failedSession.save();
+        }
+        break;
+
+      case 'refund.created':
+        logger.info(`Refund ${payload.refund.entity.id} created`);
+        break;
+
+      default:
+        logger.info(`Unhandled event type ${event}`);
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    logger.error('Webhook handling failed:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
-
-  // Handle the event
-  switch (event.type) {
-    case 'payment_intent.succeeded':
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      logger.info(`PaymentIntent ${paymentIntent.id} succeeded`);
-
-      // Auto-confirm payment if not already confirmed
-      const session = await Session.findOne({
-        paymentIntentId: paymentIntent.id,
-      });
-
-      if (session && session.paymentStatus !== 'paid') {
-        session.paymentStatus = 'paid';
-        session.status = 'confirmed';
-        await session.save();
-      }
-      break;
-
-    case 'payment_intent.payment_failed':
-      const failedPayment = event.data.object as Stripe.PaymentIntent;
-      logger.error(`PaymentIntent ${failedPayment.id} failed`);
-
-      // Update session status
-      const failedSession = await Session.findOne({
-        paymentIntentId: failedPayment.id,
-      });
-
-      if (failedSession) {
-        failedSession.paymentStatus = 'failed';
-        await failedSession.save();
-      }
-      break;
-
-    default:
-      logger.info(`Unhandled event type ${event.type}`);
-  }
-
-  res.json({ received: true });
 };

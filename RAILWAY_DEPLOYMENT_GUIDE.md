@@ -80,10 +80,10 @@ SMTP_PASS=your-app-password
 FROM_EMAIL=noreply@serenewellbeing.com
 FROM_NAME=Serene Wellbeing Hub
 
-# Stripe (Optional - for payments)
-STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
-STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
-STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+# Razorpay (for payments)
+RAZORPAY_KEY_ID=rzp_test_your_key_id_here
+RAZORPAY_KEY_SECRET=your_razorpay_secret_here
+RAZORPAY_WEBHOOK_SECRET=your_webhook_secret_here
 
 # API Version
 API_VERSION=v1
@@ -130,8 +130,8 @@ Go to **Variables** tab and add:
 # Backend API URL (get this from backend service after it deploys)
 VITE_API_URL=https://your-backend-url.railway.app/api/v1
 
-# Stripe Public Key (for frontend payments)
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
+# Razorpay Key ID (for frontend payments)
+VITE_RAZORPAY_KEY_ID=rzp_test_your_key_id_here
 ```
 
 **How to get the backend URL:**
@@ -218,10 +218,12 @@ You should see your React application.
 2. Click "Create API Key"
 3. Copy the key and add to Railway environment variables
 
-### Stripe Keys (for payments)
-1. Go to: https://dashboard.stripe.com/test/apikeys
-2. Copy "Publishable key" and "Secret key"
-3. Add both to Railway environment variables
+### Razorpay Keys (for payments)
+1. Go to: https://dashboard.razorpay.com/
+2. Login and go to Settings → API Keys
+3. Generate Test Keys
+4. Copy "Key ID" (rzp_test_...) and "Key Secret"
+5. Add both to Railway environment variables
 
 ### SendGrid (for emails - optional)
 1. Go to: https://app.sendgrid.com/settings/api_keys
