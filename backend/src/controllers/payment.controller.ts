@@ -118,21 +118,7 @@ export const createPaymentOrder = async (
   }
 };
 
-/**
- * Get currency multiplier for converting to smallest unit
- * Most currencies use 100 (cents/paise), some use 1 (no decimal)
- */
-const getCurrencyMultiplier = (currency: string): number => {
-  const zeroCurrencies = ['JPY', 'KRW', 'CLP', 'VND']; // Currencies with no decimal places
-  const threeCurrencies = ['BHD', 'KWD', 'OMR', 'TND']; // Currencies with 3 decimal places
-
-  if (zeroCurrencies.includes(currency.toUpperCase())) {
-    return 1;
-  } else if (threeCurrencies.includes(currency.toUpperCase())) {
-    return 1000;
-  }
-  return 100; // Default: paise/cents
-};
+// Note: getCurrencyMultiplier is imported from ../utils/payment
 
 /**
  * Verify Razorpay Payment Signature
@@ -144,6 +130,11 @@ export const verifyPayment = async (
 ): Promise<void> => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    // Validate required fields
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      throw new AppError('Missing required payment fields', 400);
+    }
 
     // Verify signature
     const text = `${razorpay_order_id}|${razorpay_payment_id}`;
@@ -161,6 +152,20 @@ export const verifyPayment = async (
 
     if (!session) {
       throw new AppError('Session not found', 404);
+    }
+
+    // Verify user owns this session
+    if (session.userId.toString() !== req.user!._id.toString()) {
+      throw new AppError('Not authorized to verify this payment', 403);
+    }
+
+    // Check if payment already verified (prevent double verification)
+    if (session.paymentStatus === 'paid') {
+      return res.status(200).json({
+        success: true,
+        message: 'Payment already verified',
+        session,
+      });
     }
 
     // Update session
@@ -203,13 +208,40 @@ export const purchaseCredits = async (
   try {
     const { amount, credits, currency } = req.body;
 
+    // Validate required fields
     if (!amount || !credits) {
       throw new AppError('Amount and credits are required', 400);
     }
 
+    // Validate amount is positive
+    if (amount <= 0) {
+      throw new AppError('Amount must be greater than 0', 400);
+    }
+
+    // Validate credits is positive integer
+    if (credits <= 0 || !Number.isInteger(credits)) {
+      throw new AppError('Credits must be a positive integer', 400);
+    }
+
     // Fetch user to get preferred currency
     const user = await User.findById(req.user!._id);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
     const finalCurrency = currency || user?.preferredCurrency || process.env.DEFAULT_CURRENCY || 'INR';
+
+    // Validate currency
+    if (!isValidCurrency(finalCurrency)) {
+      throw new AppError(`Currency ${finalCurrency} is not supported`, 400);
+    }
+
+    // Validate amount with currency-specific min/max
+    const amountValidation = validateAmount(amount, finalCurrency);
+    if (!amountValidation.isValid) {
+      throw new AppError(amountValidation.error!, 400);
+    }
+
     const currencyMultiplier = getCurrencyMultiplier(finalCurrency);
 
     // Create Razorpay order
@@ -233,8 +265,22 @@ export const purchaseCredits = async (
       keyId: process.env.RAZORPAY_KEY_ID,
     });
   } catch (error: any) {
+    // Handle Razorpay-specific errors
+    if (error.error?.code === 'BAD_REQUEST_ERROR') {
+      logger.error('Razorpay bad request:', error);
+      return next(new AppError('Invalid payment details', 400));
+    }
+    if (error.error?.code === 'GATEWAY_ERROR') {
+      logger.error('Razorpay gateway error:', error);
+      return next(new AppError('Payment gateway temporarily unavailable', 503));
+    }
+    if (error.statusCode === 429) {
+      logger.error('Razorpay rate limit:', error);
+      return next(new AppError('Too many requests, please try again later', 429));
+    }
+
     logger.error('Credit purchase failed:', error);
-    next(new AppError('Credit purchase failed', 500));
+    next(error instanceof AppError ? error : new AppError('Credit purchase failed', 500));
   }
 };
 
@@ -248,6 +294,16 @@ export const verifyCreditPurchase = async (
 ): Promise<void> => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, credits } = req.body;
+
+    // Validate required fields
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !credits) {
+      throw new AppError('Missing required fields', 400);
+    }
+
+    // Validate credits is positive integer
+    if (credits <= 0 || !Number.isInteger(credits)) {
+      throw new AppError('Credits must be a positive integer', 400);
+    }
 
     // Verify signature
     const text = `${razorpay_order_id}|${razorpay_payment_id}`;
@@ -265,6 +321,12 @@ export const verifyCreditPurchase = async (
 
     if (payment.status !== 'captured' && payment.status !== 'authorized') {
       throw new AppError('Payment not successful', 400);
+    }
+
+    // Check if payment was already processed (prevent double credit)
+    const existingTransaction = await Transaction.findOne({ razorpay_payment_id });
+    if (existingTransaction) {
+      throw new AppError('Payment already processed', 400);
     }
 
     // Update user credits
@@ -320,6 +382,16 @@ export const getPaymentHistory = async (
 
     const pageNum = Number(page);
     const limitNum = Number(limit);
+
+    // Validate pagination parameters
+    if (isNaN(pageNum) || pageNum < 1) {
+      throw new AppError('Invalid page number', 400);
+    }
+
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+      throw new AppError('Limit must be between 1 and 100', 400);
+    }
+
     const skip = (pageNum - 1) * limitNum;
 
     const transactions = await Transaction.find({ userId: req.user!._id })
@@ -354,6 +426,16 @@ export const requestRefund = async (
 ): Promise<void> => {
   try {
     const { sessionId, reason } = req.body;
+
+    // Validate required fields
+    if (!sessionId || !reason) {
+      throw new AppError('Session ID and reason are required', 400);
+    }
+
+    // Validate reason is not empty
+    if (typeof reason !== 'string' || reason.trim().length === 0) {
+      throw new AppError('Reason must be a non-empty string', 400);
+    }
 
     const session = await Session.findById(sessionId);
 
@@ -434,8 +516,23 @@ export const webhookHandler = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET!;
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+    // Check webhook secret is configured
+    if (!secret) {
+      logger.error('Webhook secret not configured');
+      res.status(500).send('Webhook not configured');
+      return;
+    }
+
     const signature = req.headers['x-razorpay-signature'] as string;
+
+    // Check signature header exists
+    if (!signature) {
+      logger.error('Missing webhook signature');
+      res.status(400).send('Missing signature');
+      return;
+    }
 
     // Verify webhook signature
     const expectedSignature = crypto
@@ -451,6 +548,13 @@ export const webhookHandler = async (
 
     const event = req.body.event;
     const payload = req.body.payload;
+
+    // Validate event and payload exist
+    if (!event || !payload) {
+      logger.error('Invalid webhook payload');
+      res.status(400).send('Invalid payload');
+      return;
+    }
 
     // Handle the event
     switch (event) {
