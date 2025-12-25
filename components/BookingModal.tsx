@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, CreditCard, CheckCircle } from 'lucide-react';
+import { X, Calendar, Clock, CreditCard, CheckCircle, Loader2 } from 'lucide-react';
 import { Expert } from '../types';
 import { Button, Input } from './UI';
+import { SessionCheckout } from './RazorpayCheckout';
+import { RazorpayResponse } from '../hooks/useRazorpay';
+import { paymentService } from '../services/payment.service';
 
 interface BookingModalProps {
   expert: Expert;
@@ -13,18 +16,63 @@ export const BookingModal: React.FC<BookingModalProps> = ({ expert, isOpen, onCl
   const [step, setStep] = useState(1);
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleNext = () => setStep(step + 1);
+  const handleNext = async () => {
+    if (step === 1) {
+      // Create session before moving to payment
+      try {
+        setIsCreatingSession(true);
+        setError(null);
+
+        // TODO: Replace with actual session creation API call
+        // For now, simulate session creation
+        const mockSessionId = `session_${Date.now()}`;
+        setSessionId(mockSessionId);
+        setStep(2);
+      } catch (err: any) {
+        setError(err.message || 'Failed to create session');
+      } finally {
+        setIsCreatingSession(false);
+      }
+    } else {
+      setStep(step + 1);
+    }
+  };
+
   const handleBack = () => setStep(step - 1);
+
+  const handlePaymentSuccess = async (response: RazorpayResponse) => {
+    try {
+      // Verify payment with backend
+      await paymentService.verifyPayment({
+        razorpay_order_id: response.razorpay_order_id,
+        razorpay_payment_id: response.razorpay_payment_id,
+        razorpay_signature: response.razorpay_signature,
+      });
+
+      // Move to success step
+      setStep(3);
+    } catch (err: any) {
+      setError(err.message || 'Payment verification failed');
+    }
+  };
+
+  const handlePaymentCancel = () => {
+    setStep(1);
+    setSessionId(null);
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
         <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={onClose}></div>
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-        
+
         <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
           {/* Header */}
           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-100 flex justify-between items-center">
@@ -39,7 +87,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({ expert, isOpen, onCl
           </div>
 
           <div className="px-4 py-5 sm:p-6">
-            
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
+                {error}
+              </div>
+            )}
+
             {/* Step 1: Schedule */}
             {step === 1 && (
                 <div className="space-y-6">
@@ -55,8 +110,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ expert, isOpen, onCl
                         <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
                         <div className="grid grid-cols-4 gap-2">
                              {['Mon 12', 'Tue 13', 'Wed 14', 'Thu 15'].map((d) => (
-                                 <button 
-                                    key={d} 
+                                 <button
+                                    key={d}
                                     onClick={() => setDate(d)}
                                     className={`py-3 rounded-lg text-sm border ${date === d ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 text-gray-600 hover:border-emerald-200'}`}
                                  >
@@ -71,8 +126,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ expert, isOpen, onCl
                             <label className="block text-sm font-medium text-gray-700 mb-2">Select Time</label>
                             <div className="grid grid-cols-3 gap-2">
                                 {['09:00 AM', '11:00 AM', '02:00 PM', '04:00 PM'].map((t) => (
-                                    <button 
-                                        key={t} 
+                                    <button
+                                        key={t}
                                         onClick={() => setTime(t)}
                                         className={`py-2 rounded-lg text-sm border ${time === t ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 text-gray-600 hover:border-emerald-200'}`}
                                     >
@@ -85,34 +140,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({ expert, isOpen, onCl
                 </div>
             )}
 
-            {/* Step 2: Payment */}
-            {step === 2 && (
-                <div className="space-y-4">
-                    <div className="bg-gray-50 p-4 rounded-xl space-y-2 mb-6">
-                        <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Session</span>
-                            <span className="font-medium text-gray-900">1 Hour Consultation</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Date</span>
-                            <span className="font-medium text-gray-900">{date}, {time}</span>
-                        </div>
-                        <div className="border-t border-gray-200 pt-2 flex justify-between">
-                            <span className="font-bold text-gray-900">Total</span>
-                            <span className="font-bold text-emerald-600">${expert.price}</span>
-                        </div>
-                    </div>
-
-                    <Input label="Card Number" placeholder="0000 0000 0000 0000" />
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="Expiry" placeholder="MM/YY" />
-                        <Input label="CVC" placeholder="123" />
-                    </div>
-                    <div className="flex items-center mt-4">
-                        <input type="checkbox" className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded" />
-                        <label className="ml-2 block text-sm text-gray-900">Save card for future payments</label>
-                    </div>
-                </div>
+            {/* Step 2: Payment with Razorpay */}
+            {step === 2 && sessionId && (
+                <SessionCheckout
+                  sessionId={sessionId}
+                  amount={expert.price}
+                  expertName={expert.name}
+                  sessionDate={date || undefined}
+                  sessionTime={time || undefined}
+                  onSuccess={handlePaymentSuccess}
+                  onCancel={handlePaymentCancel}
+                  showCurrencySelector={true}
+                  showTimezoneSelector={true}
+                />
             )}
 
             {/* Step 3: Success */}
@@ -133,23 +173,24 @@ export const BookingModal: React.FC<BookingModalProps> = ({ expert, isOpen, onCl
           {/* Footer Actions */}
           <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
             {step === 1 && (
-                <Button onClick={handleNext} disabled={!date || !time} className="w-full sm:w-auto sm:ml-3">
-                    Continue to Payment
-                </Button>
-            )}
-            {step === 2 && (
-                <Button onClick={handleNext} className="w-full sm:w-auto sm:ml-3">
-                    Pay ${expert.price}
+                <Button
+                  onClick={handleNext}
+                  disabled={!date || !time || isCreatingSession}
+                  className="w-full sm:w-auto sm:ml-3"
+                >
+                  {isCreatingSession ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Creating Session...
+                    </>
+                  ) : (
+                    'Continue to Payment'
+                  )}
                 </Button>
             )}
             {step === 3 && (
                 <Button onClick={onClose} className="w-full sm:w-auto sm:ml-3">
                     Done
-                </Button>
-            )}
-            {step === 2 && (
-                <Button variant="outline" onClick={handleBack} className="mt-3 w-full sm:mt-0 sm:w-auto">
-                    Back
                 </Button>
             )}
             {step === 1 && (

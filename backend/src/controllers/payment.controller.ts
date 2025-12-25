@@ -7,6 +7,18 @@ import Transaction from '../models/Transaction';
 import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../utils/errors';
 import logger from '../utils/logger';
+import {
+  isValidCurrency,
+  validateAmount,
+  getCurrencyMultiplier
+} from '../utils/payment';
+import { isValidTimezone } from '../utils/timezone';
+
+// Validate Razorpay credentials on startup
+if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+  logger.error('Razorpay credentials not configured');
+  throw new Error('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be set');
+}
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -24,10 +36,10 @@ export const createPaymentOrder = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { sessionId, amount, currency = process.env.DEFAULT_CURRENCY || 'INR' } = req.body;
+    const { sessionId, amount, currency, timezone } = req.body;
 
+    // Validate session exists
     const session = await Session.findById(sessionId);
-
     if (!session) {
       throw new AppError('Session not found', 404);
     }
@@ -37,12 +49,28 @@ export const createPaymentOrder = async (
       throw new AppError('Not authorized', 403);
     }
 
-    // Fetch user to get preferred currency if not provided
+    // Fetch user to get preferred currency/timezone if not provided
     const user = await User.findById(req.user!._id);
     const finalCurrency = currency || user?.preferredCurrency || process.env.DEFAULT_CURRENCY || 'INR';
+    const finalTimezone = timezone || user?.timezone || process.env.DEFAULT_TIMEZONE || 'UTC';
 
-    // Razorpay supports: INR, USD, EUR, GBP, AUD, CAD, SGD, AED, MYR, and more
-    // Convert amount to smallest currency unit (paise/cents)
+    // Validate currency
+    if (!isValidCurrency(finalCurrency)) {
+      throw new AppError(`Currency ${finalCurrency} is not supported`, 400);
+    }
+
+    // Validate amount
+    const amountValidation = validateAmount(amount, finalCurrency);
+    if (!amountValidation.isValid) {
+      throw new AppError(amountValidation.error!, 400);
+    }
+
+    // Validate timezone
+    if (!isValidTimezone(finalTimezone)) {
+      throw new AppError(`Invalid timezone: ${finalTimezone}`, 400);
+    }
+
+    // Convert amount to smallest currency unit
     const currencyMultiplier = getCurrencyMultiplier(finalCurrency);
 
     // Create Razorpay order
@@ -53,13 +81,14 @@ export const createPaymentOrder = async (
       notes: {
         sessionId: session._id.toString(),
         userId: req.user!._id.toString(),
-        timezone: req.body.timezone || user?.timezone || process.env.DEFAULT_TIMEZONE || 'UTC',
+        timezone: finalTimezone,
       },
     });
 
-    // Update session with order ID and currency
+    // Update session with order ID, currency, and timezone
     session.paymentOrderId = order.id;
     session.currency = finalCurrency;
+    session.timezone = finalTimezone;
     await session.save();
 
     res.status(200).json({
@@ -70,8 +99,22 @@ export const createPaymentOrder = async (
       keyId: process.env.RAZORPAY_KEY_ID,
     });
   } catch (error: any) {
+    // Handle Razorpay-specific errors
+    if (error.error?.code === 'BAD_REQUEST_ERROR') {
+      logger.error('Razorpay bad request:', error);
+      return next(new AppError('Invalid payment details', 400));
+    }
+    if (error.error?.code === 'GATEWAY_ERROR') {
+      logger.error('Razorpay gateway error:', error);
+      return next(new AppError('Payment gateway temporarily unavailable', 503));
+    }
+    if (error.statusCode === 429) {
+      logger.error('Razorpay rate limit:', error);
+      return next(new AppError('Too many requests, please try again later', 429));
+    }
+
     logger.error('Payment order creation failed:', error);
-    next(new AppError('Payment processing failed', 500));
+    next(error instanceof AppError ? error : new AppError('Payment processing failed', 500));
   }
 };
 
