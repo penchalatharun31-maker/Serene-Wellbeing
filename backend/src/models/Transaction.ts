@@ -56,7 +56,7 @@ const TransactionSchema = new Schema<ITransaction>(
     },
     currency: {
       type: String,
-      default: 'INR',
+      default: process.env.DEFAULT_CURRENCY || 'INR',
       uppercase: true,
     },
     status: {

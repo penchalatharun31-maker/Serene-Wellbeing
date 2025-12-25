@@ -16,6 +16,7 @@ const razorpay = new Razorpay({
 
 /**
  * Create Razorpay Order for Session Booking
+ * Supports multiple currencies and timezones
  */
 export const createPaymentOrder = async (
   req: AuthRequest,
@@ -23,7 +24,7 @@ export const createPaymentOrder = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { sessionId, amount } = req.body;
+    const { sessionId, amount, currency = process.env.DEFAULT_CURRENCY || 'INR' } = req.body;
 
     const session = await Session.findById(sessionId);
 
@@ -36,19 +37,29 @@ export const createPaymentOrder = async (
       throw new AppError('Not authorized', 403);
     }
 
+    // Fetch user to get preferred currency if not provided
+    const user = await User.findById(req.user!._id);
+    const finalCurrency = currency || user?.preferredCurrency || process.env.DEFAULT_CURRENCY || 'INR';
+
+    // Razorpay supports: INR, USD, EUR, GBP, AUD, CAD, SGD, AED, MYR, and more
+    // Convert amount to smallest currency unit (paise/cents)
+    const currencyMultiplier = getCurrencyMultiplier(finalCurrency);
+
     // Create Razorpay order
     const order = await razorpay.orders.create({
-      amount: Math.round(amount * 100), // Convert to paise (INR smallest unit)
-      currency: 'INR',
+      amount: Math.round(amount * currencyMultiplier),
+      currency: finalCurrency.toUpperCase(),
       receipt: `session_${session._id.toString()}`,
       notes: {
         sessionId: session._id.toString(),
         userId: req.user!._id.toString(),
+        timezone: req.body.timezone || user?.timezone || process.env.DEFAULT_TIMEZONE || 'UTC',
       },
     });
 
-    // Update session with order ID
+    // Update session with order ID and currency
     session.paymentOrderId = order.id;
+    session.currency = finalCurrency;
     await session.save();
 
     res.status(200).json({
@@ -62,6 +73,22 @@ export const createPaymentOrder = async (
     logger.error('Payment order creation failed:', error);
     next(new AppError('Payment processing failed', 500));
   }
+};
+
+/**
+ * Get currency multiplier for converting to smallest unit
+ * Most currencies use 100 (cents/paise), some use 1 (no decimal)
+ */
+const getCurrencyMultiplier = (currency: string): number => {
+  const zeroCurrencies = ['JPY', 'KRW', 'CLP', 'VND']; // Currencies with no decimal places
+  const threeCurrencies = ['BHD', 'KWD', 'OMR', 'TND']; // Currencies with 3 decimal places
+
+  if (zeroCurrencies.includes(currency.toUpperCase())) {
+    return 1;
+  } else if (threeCurrencies.includes(currency.toUpperCase())) {
+    return 1000;
+  }
+  return 100; // Default: paise/cents
 };
 
 /**
@@ -123,6 +150,7 @@ export const verifyPayment = async (
 
 /**
  * Purchase Credits (Company/User)
+ * Supports multiple currencies
  */
 export const purchaseCredits = async (
   req: AuthRequest,
@@ -130,21 +158,27 @@ export const purchaseCredits = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { amount, credits } = req.body;
+    const { amount, credits, currency } = req.body;
 
     if (!amount || !credits) {
       throw new AppError('Amount and credits are required', 400);
     }
 
+    // Fetch user to get preferred currency
+    const user = await User.findById(req.user!._id);
+    const finalCurrency = currency || user?.preferredCurrency || process.env.DEFAULT_CURRENCY || 'INR';
+    const currencyMultiplier = getCurrencyMultiplier(finalCurrency);
+
     // Create Razorpay order
     const order = await razorpay.orders.create({
-      amount: Math.round(amount * 100),
-      currency: 'INR',
+      amount: Math.round(amount * currencyMultiplier),
+      currency: finalCurrency.toUpperCase(),
       receipt: `credits_${req.user!._id.toString()}_${Date.now()}`,
       notes: {
         userId: req.user!._id.toString(),
         credits: credits.toString(),
         type: 'credit_purchase',
+        currency: finalCurrency,
       },
     });
 
@@ -199,12 +233,16 @@ export const verifyCreditPurchase = async (
     user.credits += credits;
     await user.save();
 
+    // Get currency from payment
+    const paymentCurrency = payment.currency || 'INR';
+    const currencyMultiplier = getCurrencyMultiplier(paymentCurrency);
+
     // Create transaction record
     await Transaction.create({
       userId: user._id,
       type: 'credit_purchase',
-      amount: payment.amount / 100,
-      currency: 'INR',
+      amount: payment.amount / currencyMultiplier,
+      currency: paymentCurrency.toUpperCase(),
       status: 'completed',
       paymentMethod: payment.method,
       razorpayPaymentId: razorpay_payment_id,
@@ -311,14 +349,18 @@ export const requestRefund = async (
     session.status = 'refunded';
     await session.save();
 
+    // Get currency from payment
+    const paymentCurrency = payment.currency || session.currency || 'INR';
+    const currencyMultiplier = getCurrencyMultiplier(paymentCurrency);
+
     // Create refund transaction
     await Transaction.create({
       userId: session.userId,
       expertId: session.expertId,
       sessionId: session._id,
       type: 'refund',
-      amount: refund.amount / 100,
-      currency: 'INR',
+      amount: refund.amount / currencyMultiplier,
+      currency: paymentCurrency.toUpperCase(),
       status: 'completed',
       paymentMethod: payment.method,
       razorpayPaymentId: refund.id,

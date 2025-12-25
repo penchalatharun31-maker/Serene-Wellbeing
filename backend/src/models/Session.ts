@@ -9,6 +9,8 @@ export interface ISession extends Document {
   scheduledTime: string;
   duration: number;
   price: number;
+  currency?: string; // Currency code (INR, USD, EUR, etc.)
+  timezone?: string; // Timezone (UTC, Asia/Kolkata, America/New_York, etc.)
   paymentStatus: 'pending' | 'paid' | 'refunded' | 'failed';
   paymentIntentId?: string; // Legacy Stripe field (deprecated)
   paymentOrderId?: string; // Razorpay Order ID
@@ -74,6 +76,15 @@ const SessionSchema = new Schema<ISession>(
       type: Number,
       required: [true, 'Price is required'],
       min: [0, 'Price cannot be negative'],
+    },
+    currency: {
+      type: String,
+      uppercase: true,
+      default: process.env.DEFAULT_CURRENCY || 'INR',
+    },
+    timezone: {
+      type: String,
+      default: process.env.DEFAULT_TIMEZONE || 'UTC',
     },
     paymentStatus: {
       type: String,
