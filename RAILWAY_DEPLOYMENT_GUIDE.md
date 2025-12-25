@@ -59,31 +59,39 @@ NODE_ENV=production
 # MongoDB Atlas (USE YOUR ATLAS CONNECTION STRING!)
 MONGODB_URI=mongodb+srv://penchalatharun31_db_user:FJhvx7Q8nd8F.XT@cluster0.nl28hbh.mongodb.net/serene-wellbeing?retryWrites=true&w=majority&appName=Cluster0
 
-# JWT Secret (generate a random string)
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-
-# JWT Expiry
-JWT_EXPIRE=7d
-JWT_COOKIE_EXPIRE=7
+# JWT Secrets (GENERATE STRONG RANDOM STRINGS!)
+JWT_SECRET=your-super-secret-jwt-key-min-32-chars-change-this
+JWT_REFRESH_SECRET=your-super-secret-refresh-key-min-32-chars-change-this
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_EXPIRES_IN=30d
 
 # Google Gemini AI
 GEMINI_API_KEY=your-gemini-api-key-here
+GEMINI_MODEL=gemini-2.0-flash-exp
 
 # Frontend URL (Railway will provide this after frontend deployment)
 FRONTEND_URL=https://your-frontend-url.railway.app
 
-# Email Settings (Optional - use SendGrid, Mailgun, or SMTP)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-FROM_EMAIL=noreply@serenewellbeing.com
-FROM_NAME=Serene Wellbeing Hub
-
-# Razorpay (for payments)
+# Razorpay Payment Configuration
 RAZORPAY_KEY_ID=rzp_test_your_key_id_here
 RAZORPAY_KEY_SECRET=your_razorpay_secret_here
 RAZORPAY_WEBHOOK_SECRET=your_webhook_secret_here
+
+# Currency & Timezone Configuration
+DEFAULT_CURRENCY=INR
+DEFAULT_TIMEZONE=UTC
+
+# Email Settings (Optional - use SendGrid, Mailgun, or Gmail SMTP)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+EMAIL_FROM=Serene Wellbeing <noreply@serenewellbeing.com>
+
+# Business Configuration
+PLATFORM_COMMISSION_RATE=0.20
+EXPERT_PAYOUT_DAY=1
 
 # API Version
 API_VERSION=v1
@@ -91,8 +99,9 @@ API_VERSION=v1
 
 **Important Notes:**
 - Railway automatically provides the `PORT` variable - DO NOT set it manually
-- Replace `your-gemini-api-key-here` with your actual Google Gemini API key
-- Generate a strong random string for `JWT_SECRET`
+- Replace `your-gemini-api-key-here` with your actual Google Gemini API key from https://aistudio.google.com/app/apikey
+- Generate strong random strings for JWT secrets (use: `openssl rand -base64 32`)
+- For production, use Razorpay LIVE keys (rzp_live_...) instead of test keys
 
 ### Step 2: Deploy Frontend Service
 
@@ -130,15 +139,28 @@ Go to **Variables** tab and add:
 # Backend API URL (get this from backend service after it deploys)
 VITE_API_URL=https://your-backend-url.railway.app/api/v1
 
-# Razorpay Key ID (for frontend payments)
+# Razorpay Configuration (Frontend)
 VITE_RAZORPAY_KEY_ID=rzp_test_your_key_id_here
+
+# Currency & Timezone Configuration
+VITE_DEFAULT_CURRENCY=INR
+VITE_DEFAULT_TIMEZONE=UTC
+
+# Feature Flags (Optional)
+VITE_ENABLE_CHAT=true
+VITE_ENABLE_VIDEO_CALLS=true
+VITE_ENABLE_GROUP_SESSIONS=true
 ```
 
 **How to get the backend URL:**
 1. Go to your **serene-backend** service
 2. Click on **Settings** > **Networking**
 3. Copy the public domain (e.g., `serene-backend-production.up.railway.app`)
-4. Add it as `VITE_API_URL` in frontend variables
+4. Add it as `VITE_API_URL` in frontend variables (include `/api/v1` at the end)
+
+**Important:**
+- Use the SAME Razorpay Key ID in both backend and frontend
+- For production, use Razorpay LIVE keys (rzp_live_...)
 
 ### Step 3: Update CORS Configuration
 
