@@ -1,5 +1,5 @@
-import mongoose from 'mongoose';
-import logger from '../utils/logger';
+import mongoose from "mongoose";
+import logger from "../utils/logger";
 
 /**
  * Enhanced Database Configuration
@@ -11,15 +11,20 @@ const RETRY_DELAY = 5000; // 5 seconds
 
 const connectDB = async (retryCount = 0): Promise<void> => {
   try {
-    if (!process.env.MONGODB_URI || process.env.MONGODB_URI === 'mongodb://localhost:27017/serene-wellbeing') {
-      logger.warn('MongoDB URI not configured or using default localhost - attempting connection...');
+    if (
+      !process.env.MONGODB_URI ||
+      process.env.MONGODB_URI === "mongodb://localhost:27017/serene-wellbeing"
+    ) {
+      logger.warn(
+        "MongoDB URI not configured or using default localhost - attempting connection..."
+      );
     }
 
     // Enhanced connection options for production scalability
     const options = {
       // Connection Pool Settings
-      maxPoolSize: process.env.NODE_ENV === 'production' ? 50 : 10,
-      minPoolSize: process.env.NODE_ENV === 'production' ? 10 : 2,
+      maxPoolSize: process.env.NODE_ENV === "production" ? 50 : 10,
+      minPoolSize: process.env.NODE_ENV === "production" ? 10 : 2,
 
       // Timeout Settings
       serverSelectionTimeoutMS: 10000, // 10 seconds
@@ -34,10 +39,14 @@ const connectDB = async (retryCount = 0): Promise<void> => {
       maxIdleTimeMS: 300000, // Close idle connections after 5 minutes
 
       // Performance
-      autoIndex: process.env.NODE_ENV !== 'production', // Disable in production for performance
+      autoIndex: process.env.NODE_ENV !== "production", // Disable in production for performance
     };
 
-    logger.info(`Attempting MongoDB connection (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
+    logger.info(
+      `Attempting MongoDB connection (attempt ${retryCount + 1}/${
+        MAX_RETRIES + 1
+      })...`
+    );
 
     const conn = await mongoose.connect(process.env.MONGODB_URI!, options);
 
@@ -46,12 +55,12 @@ const connectDB = async (retryCount = 0): Promise<void> => {
     logger.info(`✓ Connection pool size: ${options.maxPoolSize}`);
 
     // Monitor connection pool
-    mongoose.connection.on('connected', () => {
-      logger.info('MongoDB connection established');
+    mongoose.connection.on("connected", () => {
+      logger.info("MongoDB connection established");
     });
 
-    mongoose.connection.on('error', (err) => {
-      logger.error('MongoDB connection error:', err);
+    mongoose.connection.on("error", (err) => {
+      logger.error("MongoDB connection error:", err);
 
       // Attempt reconnection on error
       if (retryCount < MAX_RETRIES) {
@@ -60,35 +69,41 @@ const connectDB = async (retryCount = 0): Promise<void> => {
       }
     });
 
-    mongoose.connection.on('disconnected', () => {
-      logger.warn('MongoDB disconnected - attempting to reconnect...');
+    mongoose.connection.on("disconnected", () => {
+      logger.warn("MongoDB disconnected - attempting to reconnect...");
 
       // Auto-reconnect on disconnect
-      if (retryCount < MAX_RETRIES && process.env.NODE_ENV === 'production') {
+      if (retryCount < MAX_RETRIES && process.env.NODE_ENV === "production") {
         setTimeout(() => connectDB(retryCount + 1), RETRY_DELAY);
       }
     });
 
-    mongoose.connection.on('reconnected', () => {
-      logger.info('MongoDB reconnected successfully');
+    mongoose.connection.on("reconnected", () => {
+      logger.info("MongoDB reconnected successfully");
     });
 
     // Log connection pool stats periodically (every 5 minutes in production)
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === "production") {
       setInterval(() => {
-        const poolSize = mongoose.connection.db?.admin().serverStatus?.().then((status: any) => {
-          logger.info('MongoDB Pool Stats:', {
-            currentConnections: status.connections?.current || 'N/A',
-            availableConnections: status.connections?.available || 'N/A',
+        const poolSize = mongoose.connection.db
+          ?.admin()
+          .serverStatus?.()
+          .then((status: any) => {
+            logger.info("MongoDB Pool Stats:", {
+              currentConnections: status.connections?.current || "N/A",
+              availableConnections: status.connections?.available || "N/A",
+            });
+          })
+          .catch(() => {
+            // Silently fail if we can't get stats
           });
-        }).catch(() => {
-          // Silently fail if we can't get stats
-        });
       }, 300000); // 5 minutes
     }
-
   } catch (error: any) {
-    logger.error(`MongoDB connection failed (attempt ${retryCount + 1}):`, error.message);
+    logger.error(
+      `MongoDB connection failed (attempt ${retryCount + 1}):`,
+      error.message
+    );
 
     // Retry connection with exponential backoff
     if (retryCount < MAX_RETRIES) {
@@ -96,14 +111,15 @@ const connectDB = async (retryCount = 0): Promise<void> => {
       logger.warn(`Retrying connection in ${delay / 1000} seconds...`);
       setTimeout(() => connectDB(retryCount + 1), delay);
     } else {
-      logger.error('Max retry attempts reached. Could not connect to MongoDB.');
-      logger.warn('Server will start without database - API calls will fail');
+      logger.error("Max retry attempts reached. Could not connect to MongoDB.");
+      logger.warn("Server will start without database - API calls will fail");
+      logger.warn(
+        "Please check MONGODB_URI environment variable and MongoDB Atlas network access"
+      );
 
-      // Exit in production after max retries
-      if (process.env.NODE_ENV === 'production') {
-        logger.error('Exiting in production mode due to database connection failure');
-        process.exit(1);
-      }
+      // Don't exit - allow server to start and show health check as degraded
+      // This allows Railway to detect the service is running even if DB is misconfigured
+      // The health endpoint will show the database connection status
     }
   }
 };
@@ -114,9 +130,9 @@ const connectDB = async (retryCount = 0): Promise<void> => {
 export const disconnectDB = async (): Promise<void> => {
   try {
     await mongoose.connection.close();
-    logger.info('MongoDB connection closed gracefully');
+    logger.info("MongoDB connection closed gracefully");
   } catch (error: any) {
-    logger.error('Error closing MongoDB connection:', error.message);
+    logger.error("Error closing MongoDB connection:", error.message);
     throw error;
   }
 };
@@ -132,8 +148,8 @@ export const isConnected = (): boolean => {
  * Get connection status
  */
 export const getConnectionStatus = (): string => {
-  const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
-  return states[mongoose.connection.readyState] || 'unknown';
+  const states = ["disconnected", "connected", "connecting", "disconnecting"];
+  return states[mongoose.connection.readyState] || "unknown";
 };
 
 export default connectDB;
