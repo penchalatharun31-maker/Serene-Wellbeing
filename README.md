@@ -311,6 +311,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [ ] Community forums
 - [ ] Peer support groups
 - [ ] Advanced analytics dashboard
+- [ ] Advanced analytics dashboard
 
 ---
 
