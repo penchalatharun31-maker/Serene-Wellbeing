@@ -161,11 +161,12 @@ export const verifyPayment = async (
 
     // Check if payment already verified (prevent double verification)
     if (session.paymentStatus === 'paid') {
-      return res.status(200).json({
+      res.status(200).json({
         success: true,
         message: 'Payment already verified',
         session,
       });
+      return;
     }
 
     // Update session
@@ -346,7 +347,7 @@ export const verifyCreditPurchase = async (
     await Transaction.create({
       userId: user._id,
       type: 'credit_purchase',
-      amount: payment.amount / currencyMultiplier,
+      amount: Number(payment.amount) / currencyMultiplier,
       currency: paymentCurrency.toUpperCase(),
       status: 'completed',
       paymentMethod: payment.method,
@@ -484,7 +485,7 @@ export const requestRefund = async (
       expertId: session.expertId,
       sessionId: session._id,
       type: 'refund',
-      amount: refund.amount / currencyMultiplier,
+      amount: (refund.amount || 0) / currencyMultiplier,
       currency: paymentCurrency.toUpperCase(),
       status: 'completed',
       paymentMethod: payment.method,
