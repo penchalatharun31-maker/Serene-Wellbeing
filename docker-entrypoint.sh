@@ -15,10 +15,18 @@ fi
 FILE_COUNT=$(find /usr/share/nginx/html -type f | wc -l)
 echo "✓ Found $FILE_COUNT files in html directory"
 
+# Show what files exist
+echo "Files in html directory:"
+find /usr/share/nginx/html -type f
+
 # Verify nginx config once
 echo "Verifying nginx configuration..."
-nginx -t
+nginx -t 2>&1
 
-# Start nginx
+# Start nginx in foreground
 echo "Starting nginx on port 80..."
+echo "Nginx will serve from /usr/share/nginx/html"
+echo "Index file check:"
+head -5 /usr/share/nginx/html/index.html
+
 exec nginx -g 'daemon off;'
