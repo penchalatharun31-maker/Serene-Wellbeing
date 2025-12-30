@@ -27,6 +27,10 @@ RUN apk add --no-cache wget
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # Copy built files from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
@@ -40,8 +44,11 @@ RUN mkdir -p /var/cache/nginx/client_temp \
     && chown -R nginx:nginx /var/cache/nginx \
     && chown -R nginx:nginx /usr/share/nginx/html
 
-# Test nginx configuration
-RUN nginx -t
+# Verify build artifacts exist and test nginx configuration
+RUN ls -la /usr/share/nginx/html && \
+    test -f /usr/share/nginx/html/index.html && \
+    echo "Build artifacts verified" && \
+    nginx -t
 
 # Expose port 80
 EXPOSE 80
@@ -50,5 +57,5 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Use entrypoint script to start nginx with debugging
+CMD ["/docker-entrypoint.sh"]
