@@ -16,7 +16,12 @@ RUN npm ci
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN npm run build && \
+    echo "=== Build completed ===" && \
+    echo "Dist directory contents:" && \
+    ls -laR dist/ && \
+    echo "Total files in dist:" && \
+    find dist -type f | wc -l
 
 # Production stage with Nginx
 FROM nginx:alpine
