@@ -21,6 +21,9 @@ RUN npm run build
 # Production stage with Nginx
 FROM nginx:alpine
 
+# Install wget for health check
+RUN apk add --no-cache wget
+
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
 
@@ -29,6 +32,10 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Expose port 80
 EXPOSE 80
+
+# Health check - increased start-period to give Nginx time to start
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
