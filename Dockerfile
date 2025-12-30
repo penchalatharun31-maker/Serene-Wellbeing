@@ -40,9 +40,14 @@ RUN mkdir -p /var/cache/nginx/client_temp \
     /var/cache/nginx/fastcgi_temp \
     /var/cache/nginx/uwsgi_temp \
     /var/cache/nginx/scgi_temp \
+    /var/log/nginx \
     && chmod -R 755 /var/cache/nginx \
+    && chmod -R 755 /var/log/nginx \
     && chown -R nginx:nginx /var/cache/nginx \
-    && chown -R nginx:nginx /usr/share/nginx/html
+    && chown -R nginx:nginx /var/log/nginx \
+    && chown -R nginx:nginx /usr/share/nginx/html \
+    && touch /var/log/nginx/access.log /var/log/nginx/error.log \
+    && chown nginx:nginx /var/log/nginx/*.log
 
 # Verify build artifacts exist and test nginx configuration
 RUN ls -la /usr/share/nginx/html && \
