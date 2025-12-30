@@ -63,9 +63,8 @@ RUN ls -la /usr/share/nginx/html && \
 # Expose port 80
 EXPOSE 80
 
-# Health check - increased start-period significantly for nginx initialization
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
+# Note: Railway handles health checking via railway.json configuration
+# Removing Docker HEALTHCHECK to avoid conflicts with Railway's health check mechanism
 
 # Use entrypoint script to start nginx with debugging
 CMD ["/docker-entrypoint.sh"]
