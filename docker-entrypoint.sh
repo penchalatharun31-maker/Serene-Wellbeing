@@ -12,11 +12,11 @@ nginx -t
 echo "Checking /usr/share/nginx/html contents..."
 ls -la /usr/share/nginx/html/ || echo "ERROR: Directory not found or empty"
 
-# Count files in dist
+# Count files in dist - Alpine-compatible
 FILE_COUNT=$(find /usr/share/nginx/html -type f | wc -l)
 echo "Found $FILE_COUNT files in html directory"
 
-if [ $FILE_COUNT -eq 0 ]; then
+if [ "$FILE_COUNT" -eq "0" ]; then
     echo "ERROR: No files found in /usr/share/nginx/html"
     exit 1
 fi
@@ -27,8 +27,15 @@ if [ ! -f /usr/share/nginx/html/index.html ]; then
     exit 1
 fi
 
-echo "index.html exists, size: $(stat -c%s /usr/share/nginx/html/index.html) bytes"
+# Get file size - Alpine/BusyBox compatible
+INDEX_SIZE=$(wc -c < /usr/share/nginx/html/index.html)
+echo "index.html exists, size: $INDEX_SIZE bytes"
 
-# Start nginx
-echo "Starting nginx..."
+# Test if nginx can actually start and serve
+echo "Testing nginx startup..."
+nginx -t 2>&1 | head -5
+
+# Start nginx in foreground
+echo "Starting nginx in foreground..."
+echo "Nginx will listen on port 80"
 exec nginx -g 'daemon off;'
