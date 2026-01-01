@@ -70,6 +70,20 @@ export const setupSocket = (io: SocketServer): void => {
         try {
           const { receiverId, content, type = 'text', fileUrl, fileName } = data;
 
+          // Crisis Detection
+          const { detectCrisis } = await import('../utils/crisisDetector');
+          if (detectCrisis(content)) {
+            // Flag crisis - In a real app, this would trigger more aggressive alerts
+            socket.emit('crisis:alert', {
+              message: "It looks like you might be going through a difficult time. Here are some resources.",
+              resources: [
+                { name: 'National Suicide Prevention Lifeline', contact: '988' },
+                { name: 'Crisis Text Line', contact: 'Text HOME to 741741' }
+              ]
+            });
+            // Also notify the receiver (Expert) immediately with a flag
+          }
+
           // Create conversation ID
           const userIds = [userId, receiverId].sort();
           const conversationId = userIds.join('_');
@@ -104,6 +118,20 @@ export const setupSocket = (io: SocketServer): void => {
         }
       }
     );
+
+    // --- Group Therapy & WebRTC Signaling ---
+    socket.on('group:join', (groupId: string) => {
+      socket.join(`group:${groupId}`);
+      // Notify others in room
+      socket.to(`group:${groupId}`).emit('group:user-connected', userId);
+    });
+
+    socket.on('group:signal', (data: { targetId: string, signal: any }) => {
+      io.to(`user:${data.targetId}`).emit('group:signal', {
+        senderId: userId,
+        signal: data.signal
+      });
+    });
 
     // Handle typing indicators
     socket.on(

@@ -9,6 +9,7 @@ export interface ISession extends Document {
   scheduledTime: string;
   duration: number;
   price: number;
+  currency: string;
   paymentStatus: 'pending' | 'paid' | 'refunded' | 'failed';
   paymentIntentId?: string;
   transactionId?: string;
@@ -72,6 +73,10 @@ const SessionSchema = new Schema<ISession>(
       type: Number,
       required: [true, 'Price is required'],
       min: [0, 'Price cannot be negative'],
+    },
+    currency: {
+      type: String,
+      default: 'INR',
     },
     paymentStatus: {
       type: String,

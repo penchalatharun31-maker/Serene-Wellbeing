@@ -8,6 +8,7 @@ import {
   getPaymentHistory,
   requestRefund,
   webhookHandler,
+  createRazorpayOrder,
 } from '../controllers/payment.controller';
 import { protect } from '../middleware/auth';
 import { validate } from '../middleware/validation';
@@ -31,6 +32,7 @@ const purchaseCreditsValidation = [
 ];
 
 router.post('/create-intent', validate(createPaymentValidation), createPaymentIntent);
+router.post('/create-razorpay-order', createRazorpayOrder);
 router.post('/confirm', confirmPayment);
 router.post('/credits/purchase', validate(purchaseCreditsValidation), purchaseCredits);
 router.post('/credits/confirm', confirmCreditPurchase);

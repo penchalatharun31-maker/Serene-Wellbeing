@@ -16,7 +16,13 @@
     "type-check": "tsc --noEmit",
     "migrate": "node dist/utils/migrate.js"
   },
-  "keywords": ["wellbeing", "mental-health", "booking", "ai", "gemini"],
+  "keywords": [
+    "wellbeing",
+    "mental-health",
+    "booking",
+    "ai",
+    "gemini"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
@@ -35,6 +41,7 @@
     "multer": "^1.4.5-lts.1",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.13",
+    "razorpay": "^2.9.6",
     "socket.io": "^4.7.5",
     "stripe": "^15.0.0",
     "uuid": "^9.0.1",

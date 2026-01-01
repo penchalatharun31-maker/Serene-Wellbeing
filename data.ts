@@ -10,7 +10,8 @@ export const EXPERTS: Expert[] = [
     reviews: 125,
     tags: ['Meditation', 'Stress', 'Anxiety'],
     price: 120,
-    about: 'Certified mindfulness coach with over 10 years of experience helping individuals and teams cultivate presence, reduce stress, and enhance their overall wellbeing.'
+    about: 'Certified mindfulness coach with over 10 years of experience helping individuals and teams cultivate presence, reduce stress, and enhance their overall wellbeing.',
+    experience: '10 years'
   },
   {
     id: '2',
@@ -21,7 +22,8 @@ export const EXPERTS: Expert[] = [
     reviews: 98,
     tags: ['Yoga', 'HIIT', 'Strength'],
     price: 95,
-    about: 'Dedicated to helping you achieve your physical goals through a balanced approach of strength training and flexibility work.'
+    about: 'Dedicated to helping you achieve your physical goals through a balanced approach of strength training and flexibility work.',
+    experience: '6 years'
   },
   {
     id: '3',
@@ -32,7 +34,8 @@ export const EXPERTS: Expert[] = [
     reviews: 210,
     tags: ['Therapy', 'CBT', 'Relationships'],
     price: 180,
-    about: 'Specializing in cognitive behavioral therapy and relationship counseling to help you navigate life\'s challenges.'
+    about: 'Specializing in cognitive behavioral therapy and relationship counseling to help you navigate life\'s challenges.',
+    experience: '8 years'
   },
   {
     id: '4',
@@ -43,7 +46,8 @@ export const EXPERTS: Expert[] = [
     reviews: 85,
     tags: ['Diet', 'Wellness', 'Health'],
     price: 110,
-    about: 'Passionate about food as medicine. Let\'s work together to create a sustainable nutrition plan that fits your lifestyle.'
+    about: 'Passionate about food as medicine. Let\'s work together to create a sustainable nutrition plan that fits your lifestyle.',
+    experience: '5 years'
   },
   {
     id: '5',
@@ -54,7 +58,8 @@ export const EXPERTS: Expert[] = [
     reviews: 150,
     tags: ['Leadership', 'Burnout', 'Culture'],
     price: 200,
-    about: 'Helping organizations build resilient teams and foster a culture of wellbeing through strategic workshops and coaching.'
+    about: 'Helping organizations build resilient teams and foster a culture of wellbeing through strategic workshops and coaching.',
+    experience: '12 years'
   },
   {
     id: '6',
@@ -65,7 +70,8 @@ export const EXPERTS: Expert[] = [
     reviews: 75,
     tags: ['Stress', 'Resilience', 'Productivity'],
     price: 130,
-    about: 'Practical strategies to manage stress and improve productivity in high-pressure environments.'
+    about: 'Practical strategies to manage stress and improve productivity in high-pressure environments.',
+    experience: '7 years'
   }
 ];
 
