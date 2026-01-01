@@ -7,8 +7,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string, role?: User['role']) => Promise<void>;
+  login: (email: string, password: string, noNavigate?: boolean) => Promise<void>;
+  signup: (name: string, email: string, password: string, role?: User['role'], country?: string, currency?: string, noNavigate?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
   isAuthenticated: boolean;
@@ -47,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, noNavigate: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -62,8 +62,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Update state
       setUser(response.user as any);
 
-      // Navigate to appropriate dashboard
-      navigate(`/dashboard/${response.user.role}`);
+      if (!noNavigate) {
+        navigate(`/dashboard/${response.user.role}`);
+      }
     } catch (err: any) {
       setError(err.message || 'Login failed');
       throw err;
@@ -76,7 +77,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     name: string,
     email: string,
     password: string,
-    role: User['role'] = 'user'
+    role: User['role'] = 'user',
+    country?: string,
+    currency?: string,
+    noNavigate: boolean = false
   ) => {
     try {
       setLoading(true);
@@ -87,6 +91,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
         role,
+        country,
+        currency,
       });
 
       // Store tokens
@@ -97,8 +103,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Update state
       setUser(response.user as any);
 
-      // Navigate to appropriate dashboard
-      navigate(`/dashboard/${response.user.role}`);
+      if (!noNavigate) {
+        navigate(`/dashboard/${response.user.role}`);
+      }
     } catch (err: any) {
       setError(err.message || 'Signup failed');
       throw err;

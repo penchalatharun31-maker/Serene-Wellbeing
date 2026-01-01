@@ -4,6 +4,7 @@ export interface ICompany extends Document {
   name: string;
   email: string;
   adminUserId: mongoose.Types.ObjectId;
+  admins: mongoose.Types.ObjectId[];
   industry: string;
   size: string;
   credits: number;
@@ -48,6 +49,12 @@ const CompanySchema = new Schema<ICompany>(
       ref: 'User',
       required: true,
     },
+    admins: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
     industry: {
       type: String,
       required: [true, 'Industry is required'],

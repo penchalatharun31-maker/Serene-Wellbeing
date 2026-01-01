@@ -30,14 +30,19 @@ export const createPaymentIntent = async (
       throw new AppError('Not authorized', 403);
     }
 
-    // Create payment intent
+    // Determine currency: prioritize session currency, fallback to 'inr' (for Razorpay compliance if needed)
+    const currency = session.currency ? session.currency.toLowerCase() : 'inr';
+
+    // Create payment intent using Stripe (keeping existing logic for now, but dynamic)
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency: 'usd',
+      amount: Math.round(amount * 100), // Convert to cents/paise
+      currency: currency,
       metadata: {
         sessionId: session._id.toString(),
         userId: req.user!._id.toString(),
       },
+      // Note: For India (INR), description and shipping address might be required by Stripe regulations
+      description: `Session with Expert ${session.expertId}`,
     });
 
     // Update session with payment intent
@@ -50,6 +55,40 @@ export const createPaymentIntent = async (
     });
   } catch (error: any) {
     logger.error('Payment intent creation failed:', error);
+    next(new AppError('Payment processing failed', 500));
+  }
+};
+
+const Razorpay = require('razorpay');
+
+// Razorpay Integration
+export const createRazorpayOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { sessionId, amount, currency } = req.body;
+
+    // Initialize Razorpay
+    const instance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_stub',
+      key_secret: process.env.RAZORPAY_KEY_SECRET || 'secret'
+    });
+
+    const options = {
+      amount: Math.round(amount * 100), // amount in lowest denomination (paise)
+      currency: currency || 'INR',
+      receipt: sessionId || `rcpt_${Date.now()}`,
+      notes: {
+        userId: req.user ? req.user._id.toString() : 'guest'
+      }
+    };
+
+    const order = await instance.orders.create(options);
+
+    res.status(200).json({
+      success: true,
+      order
+    });
+  } catch (error) {
+    logger.error('Razorpay order creation failed:', error);
     next(new AppError('Payment processing failed', 500));
   }
 };

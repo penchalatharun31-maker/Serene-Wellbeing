@@ -9,6 +9,8 @@ export interface IExpert extends Document {
   rating: number;
   reviewCount: number;
   hourlyRate: number;
+  currency: string;
+  country: string;
   languages: string[];
   certifications: Array<{
     name: string;
@@ -91,8 +93,15 @@ const ExpertSchema = new Schema<IExpert>(
     hourlyRate: {
       type: Number,
       required: [true, 'Hourly rate is required'],
-      min: [10, 'Hourly rate must be at least $10'],
-      max: [1000, 'Hourly rate cannot exceed $1000'],
+      min: [1, 'Hourly rate must be at least 1'],
+    },
+    currency: {
+      type: String,
+      default: 'INR',
+    },
+    country: {
+      type: String,
+      default: 'India',
     },
     languages: {
       type: [String],

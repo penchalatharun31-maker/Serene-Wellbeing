@@ -10,6 +10,8 @@ export interface IUser extends Document {
   phone?: string;
   dateOfBirth?: Date;
   credits: number;
+  country?: string;
+  currency?: string;
   companyId?: mongoose.Types.ObjectId;
   isVerified: boolean;
   isActive: boolean;
@@ -69,6 +71,14 @@ const UserSchema = new Schema<IUser>(
       type: Number,
       default: 0,
       min: [0, 'Credits cannot be negative'],
+    },
+    country: {
+      type: String,
+      default: 'India',
+    },
+    currency: {
+      type: String,
+      default: 'INR',
     },
     companyId: {
       type: Schema.Types.ObjectId,
