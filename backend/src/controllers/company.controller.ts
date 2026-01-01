@@ -16,12 +16,12 @@ export const inviteEmployee = async (req: Request, res: Response) => {
         // 3. If no, create pending user.
 
         // Identifying the company of the requester
-        if (!req.user?.id) {
+        const authenticatedUser = req.user;
+        if (!authenticatedUser || !authenticatedUser.id) {
             return res.status(401).json({ success: false, message: 'Not authenticated' });
         }
 
-        const userId = req.user.id;
-        const requester = await User.findById(userId);
+        const requester = await User.findById(authenticatedUser.id);
         if (!requester || !requester.companyId) {
             return res.status(403).json({ success: false, message: 'Not authorized for company operations' });
         }
@@ -80,14 +80,14 @@ export const addAdmin = async (req: Request, res: Response) => {
     try {
         const { email, name } = req.body;
 
-        if (!req.user?.id) {
+        const authenticatedUser = req.user;
+        if (!authenticatedUser || !authenticatedUser.id) {
             return res.status(401).json({ success: false, message: 'Not authenticated' });
         }
 
-        const userId = req.user.id;
-        const requester = await User.findById(userId);
+        const requester = await User.findById(authenticatedUser.id);
         if (!requester || !requester.companyId) {
-            return res.status(403).json({ success: false, message: 'Not authorized' });
+            return res.status(403).json({ success: false, message: 'Not authenticated' });
         }
 
         const company = await Company.findById(requester.companyId);
