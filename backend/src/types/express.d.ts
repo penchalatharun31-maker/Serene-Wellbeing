@@ -1,9 +1,12 @@
-import { IUser } from '../models/User';
-
+// Extend Express Request interface to include authenticated user
 declare global {
   namespace Express {
     interface Request {
-      user?: IUser;
+      user?: {
+        id: string;
+        email?: string;
+        role?: 'user' | 'expert' | 'company' | 'super_admin';
+      };
     }
   }
 }
