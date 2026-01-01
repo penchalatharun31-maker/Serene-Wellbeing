@@ -1,4 +1,5 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 import Company from '../models/Company';
 import User from '../models/User';
 import { generateToken } from '../utils/jwt';
@@ -6,7 +7,7 @@ import { generateToken } from '../utils/jwt';
 // @desc    Invite an employee to the company
 // @route   POST /api/v1/company/invite
 // @access  Private (Company Admin only)
-export const inviteEmployee = async (req: Request, res: Response) => {
+export const inviteEmployee = async (req: AuthRequest, res: Response) => {
     try {
         const { email, name, department } = req.body;
 
@@ -16,12 +17,11 @@ export const inviteEmployee = async (req: Request, res: Response) => {
         // 3. If no, create pending user.
 
         // Identifying the company of the requester
-        const authenticatedUser = req.user;
-        if (!authenticatedUser || !authenticatedUser.id) {
+        if (!req.user) {
             return res.status(401).json({ success: false, message: 'Not authenticated' });
         }
 
-        const requester = await User.findById(authenticatedUser.id);
+        const requester = await User.findById(req.user._id);
         if (!requester || !requester.companyId) {
             return res.status(403).json({ success: false, message: 'Not authorized for company operations' });
         }
@@ -76,16 +76,15 @@ export const inviteEmployee = async (req: Request, res: Response) => {
 // @desc    Add a company admin
 // @route   POST /api/v1/company/add-admin
 // @access  Private (Company Admin only)
-export const addAdmin = async (req: Request, res: Response) => {
+export const addAdmin = async (req: AuthRequest, res: Response) => {
     try {
         const { email, name } = req.body;
 
-        const authenticatedUser = req.user;
-        if (!authenticatedUser || !authenticatedUser.id) {
+        if (!req.user) {
             return res.status(401).json({ success: false, message: 'Not authenticated' });
         }
 
-        const requester = await User.findById(authenticatedUser.id);
+        const requester = await User.findById(req.user._id);
         if (!requester || !requester.companyId) {
             return res.status(403).json({ success: false, message: 'Not authenticated' });
         }
