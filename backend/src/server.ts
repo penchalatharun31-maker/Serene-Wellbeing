@@ -40,10 +40,15 @@ dotenv.config();
 const app: Application = express();
 const server = http.createServer(app);
 
+// CORS origins for Socket.IO (same as Express)
+const socketAllowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+  : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'];
+
 // Initialize Socket.IO
 const io = new SocketServer(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: socketAllowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -60,10 +65,30 @@ connectDB();
 
 // Security middleware
 app.use(helmet());
+
+// CORS Configuration - Production-grade multi-origin support
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+  : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'];
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn(`CORS blocked request from unauthorized origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
+    maxAge: 86400, // 24 hours - cache preflight requests
   })
 );
 
