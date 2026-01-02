@@ -423,38 +423,222 @@ export const getExpertAvailability = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { expertId, date } = req.query;
+    const { id } = req.params;
+    const { date, duration } = req.query;
 
-    const expert = await Expert.findById(expertId);
+    if (!date || !duration) {
+      throw new AppError('Date and duration are required', 400);
+    }
+
+    const expert = await Expert.findById(id);
 
     if (!expert) {
       throw new AppError('Expert not found', 404);
+    }
+
+    if (!expert.isApproved || expert.approvalStatus !== 'approved') {
+      throw new AppError('Expert is not available for booking', 400);
     }
 
     // Get day of week
     const targetDate = new Date(date as string);
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayName = dayNames[targetDate.getDay()] as keyof typeof expert.availability;
+    const dayOfWeek = targetDate.getDay();
 
     // Get expert's availability for that day
     const dayAvailability = expert.availability[dayName] || [];
 
+    if (dayAvailability.length === 0) {
+      return res.status(200).json({
+        success: true,
+        date: date as string,
+        availableSlots: [],
+        message: 'Expert is not available on this day',
+      });
+    }
+
     // Get booked slots for that date
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
     const bookedSessions = await Session.find({
       expertId: expert._id,
       scheduledDate: {
-        $gte: new Date(targetDate.setHours(0, 0, 0, 0)),
-        $lt: new Date(targetDate.setHours(23, 59, 59, 999)),
+        $gte: startOfDay,
+        $lt: endOfDay,
       },
       status: { $in: ['pending', 'confirmed'] },
-    }).select('scheduledTime duration');
+    }).select('scheduledTime endTime');
 
-    const bookedSlots = bookedSessions.map((s) => s.scheduledTime);
+    const bookedSlots = bookedSessions.map((s) => ({
+      startTime: s.scheduledTime,
+      endTime: s.endTime,
+    }));
+
+    // Import helper and generate available slots
+    const { generateAvailableSlots } = await import('../utils/availabilityHelper');
+
+    const availableSlots = generateAvailableSlots(
+      dayAvailability,
+      Number(duration),
+      bookedSlots,
+      expert.breakTimes || [],
+      dayOfWeek,
+      targetDate
+    );
 
     res.status(200).json({
       success: true,
-      availability: dayAvailability,
-      bookedSlots,
+      date: date as string,
+      duration: Number(duration),
+      timezone: expert.timezone,
+      availableSlots,
+      totalSlots: availableSlots.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getExpertAvailableDates = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { year, month } = req.query;
+
+    if (!year || !month) {
+      throw new AppError('Year and month are required', 400);
+    }
+
+    const expert = await Expert.findById(id);
+
+    if (!expert) {
+      throw new AppError('Expert not found', 404);
+    }
+
+    if (!expert.isApproved || expert.approvalStatus !== 'approved') {
+      throw new AppError('Expert is not available for booking', 400);
+    }
+
+    const targetYear = Number(year);
+    const targetMonth = Number(month) - 1; // JavaScript months are 0-indexed
+
+    // Get all booked sessions for the month
+    const startOfMonth = new Date(targetYear, targetMonth, 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
+
+    const bookedSessions = await Session.find({
+      expertId: expert._id,
+      scheduledDate: {
+        $gte: startOfMonth,
+        $lte: endOfMonth,
+      },
+      status: { $in: ['pending', 'confirmed'] },
+    }).select('scheduledDate scheduledTime endTime');
+
+    // Group booked slots by date
+    const bookedSlotsByDate = new Map<string, Array<{ startTime: string; endTime: string }>>();
+    bookedSessions.forEach((session) => {
+      const dateStr = session.scheduledDate.toISOString().split('T')[0];
+      if (!bookedSlotsByDate.has(dateStr)) {
+        bookedSlotsByDate.set(dateStr, []);
+      }
+      bookedSlotsByDate.get(dateStr)!.push({
+        startTime: session.scheduledTime,
+        endTime: session.endTime,
+      });
+    });
+
+    // Import helper and get available dates
+    const { getAvailableDatesInMonth } = await import('../utils/availabilityHelper');
+
+    const availableDates = getAvailableDatesInMonth(
+      targetYear,
+      targetMonth,
+      expert.availability,
+      expert.slotDuration || 60,
+      bookedSlotsByDate,
+      expert.breakTimes || []
+    );
+
+    res.status(200).json({
+      success: true,
+      year: targetYear,
+      month: targetMonth + 1,
+      timezone: expert.timezone,
+      availableDates,
+      totalDays: availableDates.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateExpertAvailability = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      throw new AppError('Not authenticated', 401);
+    }
+
+    const expert = await Expert.findOne({ userId: req.user._id });
+
+    if (!expert) {
+      throw new AppError('Expert profile not found', 404);
+    }
+
+    const { availability, timezone, slotDuration, breakTimes } = req.body;
+
+    // Validate availability format
+    if (availability) {
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+      for (const day of dayNames) {
+        if (availability[day]) {
+          if (!Array.isArray(availability[day])) {
+            throw new AppError(`Invalid availability format for ${day}`, 400);
+          }
+          for (const slot of availability[day]) {
+            if (!slot.start || !slot.end) {
+              throw new AppError(`Invalid time slot for ${day}`, 400);
+            }
+            if (!timeRegex.test(slot.start) || !timeRegex.test(slot.end)) {
+              throw new AppError(`Invalid time format for ${day}. Use HH:MM format`, 400);
+            }
+          }
+        }
+      }
+    }
+
+    // Update fields
+    if (availability) expert.availability = availability;
+    if (timezone) expert.timezone = timezone;
+    if (slotDuration && [15, 30, 60].includes(slotDuration)) {
+      expert.slotDuration = slotDuration;
+    }
+    if (breakTimes) expert.breakTimes = breakTimes;
+
+    await expert.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Availability updated successfully',
+      data: {
+        availability: expert.availability,
+        timezone: expert.timezone,
+        slotDuration: expert.slotDuration,
+        breakTimes: expert.breakTimes,
+      },
     });
   } catch (error) {
     next(error);

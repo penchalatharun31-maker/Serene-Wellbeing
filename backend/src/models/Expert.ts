@@ -32,6 +32,19 @@ export interface IExpert extends Document {
     saturday: Array<{ start: string; end: string }>;
     sunday: Array<{ start: string; end: string }>;
   };
+  timezone: string;
+  slotDuration: number;
+  breakTimes: Array<{
+    start: string;
+    end: string;
+    days: number[];
+  }>;
+  bookedSlots: Array<{
+    date: Date;
+    startTime: string;
+    endTime: string;
+    sessionId: mongoose.Types.ObjectId;
+  }>;
   isApproved: boolean;
   approvalStatus: 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;
@@ -153,6 +166,56 @@ const ExpertSchema = new Schema<IExpert>(
       saturday: [{ start: String, end: String }],
       sunday: [{ start: String, end: String }],
     },
+    timezone: {
+      type: String,
+      default: 'Asia/Kolkata',
+    },
+    slotDuration: {
+      type: Number,
+      default: 60,
+      enum: [15, 30, 60],
+    },
+    breakTimes: [
+      {
+        start: {
+          type: String,
+          required: true,
+        },
+        end: {
+          type: String,
+          required: true,
+        },
+        days: {
+          type: [Number],
+          default: [],
+          validate: {
+            validator: (v: number[]) => v.every(day => day >= 0 && day <= 6),
+            message: 'Day must be between 0 (Sunday) and 6 (Saturday)',
+          },
+        },
+      },
+    ],
+    bookedSlots: [
+      {
+        date: {
+          type: Date,
+          required: true,
+        },
+        startTime: {
+          type: String,
+          required: true,
+        },
+        endTime: {
+          type: String,
+          required: true,
+        },
+        sessionId: {
+          type: Schema.Types.ObjectId,
+          ref: 'Session',
+          required: true,
+        },
+      },
+    ],
     isApproved: {
       type: Boolean,
       default: false,
