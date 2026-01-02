@@ -7,12 +7,16 @@ export interface ISession extends Document {
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'refunded';
   scheduledDate: Date;
   scheduledTime: string;
+  endTime: string;
   duration: number;
   price: number;
   currency: string;
   paymentStatus: 'pending' | 'paid' | 'refunded' | 'failed';
   paymentIntentId?: string;
   transactionId?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
   meetingLink?: string;
   notes?: string;
   cancelReason?: string;
@@ -63,6 +67,11 @@ const SessionSchema = new Schema<ISession>(
       required: [true, 'Scheduled time is required'],
       match: [/^([01]\d|2[0-3]):([0-5]\d)$/, 'Time must be in HH:MM format'],
     },
+    endTime: {
+      type: String,
+      required: [true, 'End time is required'],
+      match: [/^([01]\d|2[0-3]):([0-5]\d)$/, 'Time must be in HH:MM format'],
+    },
     duration: {
       type: Number,
       required: [true, 'Duration is required'],
@@ -85,6 +94,9 @@ const SessionSchema = new Schema<ISession>(
     },
     paymentIntentId: String,
     transactionId: String,
+    razorpayOrderId: String,
+    razorpayPaymentId: String,
+    razorpaySignature: String,
     meetingLink: String,
     notes: {
       type: String,
