@@ -450,12 +450,13 @@ export const getExpertAvailability = async (
     const dayAvailability = expert.availability[dayName] || [];
 
     if (dayAvailability.length === 0) {
-      return res.status(200).json({
+      res.status(200).json({
         success: true,
         date: date as string,
         availableSlots: [],
         message: 'Expert is not available on this day',
       });
+      return;
     }
 
     // Get booked slots for that date
