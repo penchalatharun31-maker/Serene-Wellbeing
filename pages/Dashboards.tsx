@@ -404,43 +404,225 @@ export const ExpertDashboard: React.FC = () => {
 };
 
 export const ExpertBookings: React.FC = () => {
-    const bookings = [
-        { id: 1, name: "Alice Freeman", type: "Initial Consultation", date: "Today, 2:00 PM", status: "pending" },
-        { id: 2, name: "Bob Smith", type: "Mindfulness Session", date: "Tomorrow, 10:00 AM", status: "confirmed" },
-        { id: 3, name: "Charlie Davis", type: "Therapy Session", date: "Jul 15, 4:00 PM", status: "confirmed" }
-    ];
+    const { user } = useAuth();
+    const [bookings, setBookings] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [processingId, setProcessingId] = useState<string | null>(null);
+    const [rejectModalOpen, setRejectModalOpen] = useState(false);
+    const [selectedBooking, setSelectedBooking] = useState<any>(null);
+    const [rejectReason, setRejectReason] = useState('');
+
+    useEffect(() => {
+        if (user) {
+            fetchBookings();
+        }
+    }, [user]);
+
+    const fetchBookings = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await apiClient.get('/sessions/expert/all');
+            setBookings(response.data.data || []);
+        } catch (err: any) {
+            console.error('Error fetching bookings:', err);
+            setError(err.message || 'Failed to load bookings');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAccept = async (bookingId: string) => {
+        try {
+            setProcessingId(bookingId);
+            await apiClient.post(`/sessions/${bookingId}/accept`);
+            await fetchBookings();
+        } catch (err: any) {
+            console.error('Error accepting booking:', err);
+            alert(err.message || 'Failed to accept booking. Please try again.');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleRejectClick = (booking: any) => {
+        setSelectedBooking(booking);
+        setRejectModalOpen(true);
+    };
+
+    const handleRejectConfirm = async () => {
+        if (!selectedBooking) return;
+
+        try {
+            setProcessingId(selectedBooking._id);
+            await apiClient.post(`/sessions/${selectedBooking._id}/reject`, {
+                reason: rejectReason || 'No specific reason provided',
+            });
+            setRejectModalOpen(false);
+            setRejectReason('');
+            setSelectedBooking(null);
+            await fetchBookings();
+        } catch (err: any) {
+            console.error('Error rejecting booking:', err);
+            alert(err.message || 'Failed to reject booking. Please try again.');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const formatDate = (dateString: string, timeString: string) => {
+        const date = new Date(dateString);
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        let dateLabel = '';
+        if (date.toDateString() === today.toDateString()) {
+            dateLabel = 'Today';
+        } else if (date.toDateString() === tomorrow.toDateString()) {
+            dateLabel = 'Tomorrow';
+        } else {
+            dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        const [hours, minutes] = timeString.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour % 12 || 12;
+
+        return `${dateLabel}, ${displayHour}:${minutes} ${ampm}`;
+    };
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
+                {!loading && (
+                    <button
+                        onClick={fetchBookings}
+                        className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                    >
+                        Refresh
+                    </button>
+                )}
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="p-6 lg:col-span-2">
                     <h3 className="font-bold text-gray-900 mb-4">All Bookings</h3>
-                    <div className="space-y-4">
-                        {bookings.map(booking => (
-                            <div key={booking.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl">
-                                <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold">
-                                        {booking.name.charAt(0)}
+                    {loading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="animate-spin text-emerald-600" size={32} />
+                            <span className="ml-3 text-gray-600">Loading bookings...</span>
+                        </div>
+                    ) : error ? (
+                        <div className="text-center py-12">
+                            <p className="text-red-600 mb-4">{error}</p>
+                            <Button onClick={fetchBookings} variant="outline">
+                                Try Again
+                            </Button>
+                        </div>
+                    ) : bookings.length === 0 ? (
+                        <div className="text-center py-12">
+                            <p className="text-gray-500">No bookings yet</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {bookings.map(booking => (
+                                <div key={booking._id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold">
+                                            {booking.userId?.name?.charAt(0) || 'U'}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-900">{booking.userId?.name || 'Unknown User'}</h4>
+                                            <p className="text-sm text-gray-500">
+                                                {formatDate(booking.scheduledDate, booking.scheduledTime)}
+                                                {booking.notes && ` • ${booking.notes.substring(0, 30)}${booking.notes.length > 30 ? '...' : ''}`}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 className="font-bold text-gray-900">{booking.name}</h4>
-                                        <p className="text-sm text-gray-500">{booking.type} • {booking.date}</p>
-                                    </div>
+                                    {booking.status === 'pending' ? (
+                                        <div className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                onClick={() => handleAccept(booking._id)}
+                                                disabled={processingId === booking._id}
+                                            >
+                                                {processingId === booking._id ? (
+                                                    <Loader2 className="animate-spin mr-1" size={16} />
+                                                ) : (
+                                                    <CheckCircle size={16} className="mr-1" />
+                                                )}
+                                                Accept
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => handleRejectClick(booking)}
+                                                disabled={processingId === booking._id}
+                                            >
+                                                <XCircle size={16} className="mr-1" /> Decline
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <Badge color={booking.status === 'confirmed' ? 'emerald' : 'gray'}>
+                                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                                        </Badge>
+                                    )}
                                 </div>
-                                {booking.status === 'pending' ? (
-                                    <div className="flex gap-2">
-                                        <Button size="sm" variant="secondary"><CheckCircle size={16} className="mr-1" /> Accept</Button>
-                                        <Button size="sm" variant="ghost"><XCircle size={16} className="mr-1" /> Decline</Button>
-                                    </div>
-                                ) : (
-                                    <Badge color="emerald">Confirmed</Badge>
-                                )}
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </Card>
+
+                {/* Reject Modal */}
+                {rejectModalOpen && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <Card className="max-w-md w-full p-6">
+                            <h3 className="text-lg font-bold text-gray-900 mb-4">Decline Booking Request</h3>
+                            <p className="text-sm text-gray-600 mb-4">
+                                Please provide a reason for declining this booking. This will be shared with the user.
+                            </p>
+                            <textarea
+                                value={rejectReason}
+                                onChange={(e) => setRejectReason(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4"
+                                rows={4}
+                                placeholder="e.g., I'm not available at this time, please choose another slot"
+                            />
+                            <div className="flex gap-3 justify-end">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setRejectModalOpen(false);
+                                        setRejectReason('');
+                                        setSelectedBooking(null);
+                                    }}
+                                    disabled={processingId === selectedBooking?._id}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={handleRejectConfirm}
+                                    disabled={processingId === selectedBooking?._id}
+                                    className="bg-red-600 hover:bg-red-700"
+                                >
+                                    {processingId === selectedBooking?._id ? (
+                                        <>
+                                            <Loader2 className="animate-spin mr-2" size={16} />
+                                            Declining...
+                                        </>
+                                    ) : (
+                                        'Decline Booking'
+                                    )}
+                                </Button>
+                            </div>
+                        </Card>
+                    </div>
+                )}
 
                 <div className="space-y-6">
                     <Card className="p-6">

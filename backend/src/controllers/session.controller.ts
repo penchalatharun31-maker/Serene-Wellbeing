@@ -592,3 +592,149 @@ export const getUpcomingSessions = async (
     next(error);
   }
 };
+
+// Expert accepts a pending session
+export const acceptSession = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    if (!req.user) {
+      throw new AppError('Not authenticated', 401);
+    }
+
+    // Find session
+    const session = await Session.findById(id).populate('userId expertId');
+    if (!session) {
+      throw new AppError('Session not found', 404);
+    }
+
+    // Verify expert owns this session
+    const expert = await Expert.findOne({ userId: req.user._id });
+    if (!expert) {
+      throw new AppError('Expert profile not found', 404);
+    }
+
+    if (session.expertId.toString() !== expert._id.toString()) {
+      throw new AppError('Not authorized to accept this session', 403);
+    }
+
+    // Check if already confirmed or completed
+    if (session.status !== 'pending') {
+      throw new AppError(`Cannot accept session with status: ${session.status}`, 400);
+    }
+
+    // Update session status
+    session.status = 'confirmed';
+    await session.save();
+
+    // Update expert stats
+    expert.totalSessions = (expert.totalSessions || 0) + 1;
+    await expert.save();
+
+    // Create notification for user
+    await Notification.create({
+      userId: (session.userId as any)._id,
+      type: 'booking_confirmed',
+      title: 'Session Confirmed',
+      message: `Your session has been confirmed by the expert`,
+      link: `/dashboard/user/sessions/${session._id}`,
+    });
+
+    logger.info(`Session ${session._id} accepted by expert ${expert._id}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Session accepted successfully',
+      session,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Expert rejects a pending session
+export const rejectSession = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!req.user) {
+      throw new AppError('Not authenticated', 401);
+    }
+
+    // Find session
+    const session = await Session.findById(id).populate('userId expertId');
+    if (!session) {
+      throw new AppError('Session not found', 404);
+    }
+
+    // Verify expert owns this session
+    const expert = await Expert.findOne({ userId: req.user._id });
+    if (!expert) {
+      throw new AppError('Expert profile not found', 404);
+    }
+
+    if (session.expertId.toString() !== expert._id.toString()) {
+      throw new AppError('Not authorized to reject this session', 403);
+    }
+
+    // Check if can be rejected
+    if (session.status !== 'pending') {
+      throw new AppError(`Cannot reject session with status: ${session.status}`, 400);
+    }
+
+    // Update session status
+    session.status = 'cancelled';
+    if (reason) {
+      session.notes = session.notes ? `${session.notes}\n\nRejection reason: ${reason}` : `Rejection reason: ${reason}`;
+    }
+    await session.save();
+
+    // Process refund if payment was made
+    if (session.paymentStatus === 'paid') {
+      // Update payment status to refunded
+      session.paymentStatus = 'refunded';
+      await session.save();
+
+      // Update transaction
+      await Transaction.findOneAndUpdate(
+        { sessionId: session._id },
+        { status: 'refunded' }
+      );
+
+      // Refund credits to user if used
+      const user = await User.findById((session.userId as any)._id);
+      if (user && session.metadata?.userCreditsUsed) {
+        user.credits = (user.credits || 0) + session.metadata.userCreditsUsed;
+        await user.save();
+      }
+    }
+
+    // Create notification for user
+    await Notification.create({
+      userId: (session.userId as any)._id,
+      type: 'booking_cancelled',
+      title: 'Session Declined',
+      message: reason || 'Your session request was declined by the expert',
+      link: `/dashboard/user/sessions`,
+    });
+
+    logger.info(`Session ${session._id} rejected by expert ${expert._id}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Session rejected successfully',
+      session,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
