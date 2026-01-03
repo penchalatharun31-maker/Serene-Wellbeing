@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge, Input, ImageUpload } from '../components/UI';
-import { Users, DollarSign, AlertTriangle, TrendingUp, MoreHorizontal, Check, X, Briefcase, Calendar, Settings, Tag, Edit, CreditCard, FileText } from 'lucide-react';
+import { Users, DollarSign, AlertTriangle, TrendingUp, MoreHorizontal, Check, X, Briefcase, Calendar, Settings, Tag, Edit, CreditCard, FileText, Loader2 } from 'lucide-react';
+import apiClient from '../services/api';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { REVENUE_DATA } from '../data';
 import { LanguageSettings, AccessibilitySettings } from './ExtraPages';
@@ -68,40 +69,149 @@ const AdminOverview: React.FC = () => (
 );
 
 const ExpertApprovals: React.FC = () => {
-    const applications = [
-        { id: 1, name: 'Dr. Sarah Jones', specialty: 'Therapy', applied: '2 days ago', status: 'Pending' },
-        { id: 2, name: 'Mark Thompson', specialty: 'Yoga', applied: '3 days ago', status: 'Pending' },
-        { id: 3, name: 'Lisa White', specialty: 'Nutrition', applied: '5 days ago', status: 'Pending' },
-    ];
+    const [experts, setExperts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [processingId, setProcessingId] = useState<string | null>(null);
+
+    useEffect(() => {
+        fetchPendingExperts();
+    }, []);
+
+    const fetchPendingExperts = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await apiClient.get('/admin/experts/pending');
+            setExperts(response.data.data || []);
+        } catch (err: any) {
+            console.error('Error fetching pending experts:', err);
+            setError(err.message || 'Failed to load expert applications');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleApprove = async (expertId: string) => {
+        try {
+            setProcessingId(expertId);
+            await apiClient.put(`/admin/experts/${expertId}/approve`);
+            // Refresh the list after approval
+            await fetchPendingExperts();
+        } catch (err: any) {
+            console.error('Error approving expert:', err);
+            alert(err.message || 'Failed to approve expert. Please try again.');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleReject = async (expertId: string) => {
+        if (!confirm('Are you sure you want to reject this expert application?')) {
+            return;
+        }
+
+        try {
+            setProcessingId(expertId);
+            await apiClient.put(`/admin/experts/${expertId}/reject`);
+            // Refresh the list after rejection
+            await fetchPendingExperts();
+        } catch (err: any) {
+            console.error('Error rejecting expert:', err);
+            alert(err.message || 'Failed to reject expert. Please try again.');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInMs = now.getTime() - date.getTime();
+        const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+        if (diffInDays === 0) return 'Today';
+        if (diffInDays === 1) return '1 day ago';
+        if (diffInDays < 7) return `${diffInDays} days ago`;
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900">Expert Applications</h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-gray-900">Expert Applications</h1>
+                {!loading && (
+                    <button
+                        onClick={fetchPendingExperts}
+                        className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                    >
+                        Refresh
+                    </button>
+                )}
+            </div>
+
             <Card>
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 text-gray-500 border-b">
-                        <tr>
-                            <th className="px-6 py-3 font-medium">Name</th>
-                            <th className="px-6 py-3 font-medium">Specialty</th>
-                            <th className="px-6 py-3 font-medium">Applied</th>
-                            <th className="px-6 py-3 font-medium text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {applications.map(app => (
-                            <tr key={app.id}>
-                                <td className="px-6 py-4 font-medium">{app.name}</td>
-                                <td className="px-6 py-4 text-gray-500">{app.specialty}</td>
-                                <td className="px-6 py-4 text-gray-500">{app.applied}</td>
-                                <td className="px-6 py-4 text-right space-x-2">
-                                    <button className="text-emerald-600 hover:bg-emerald-50 p-1 rounded"><Check size={18}/></button>
-                                    <button className="text-red-600 hover:bg-red-50 p-1 rounded"><X size={18}/></button>
-                                    <button className="text-gray-400 hover:text-gray-600 p-1 rounded"><MoreHorizontal size={18}/></button>
-                                </td>
+                {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="animate-spin text-emerald-600" size={32} />
+                        <span className="ml-3 text-gray-600">Loading expert applications...</span>
+                    </div>
+                ) : error ? (
+                    <div className="text-center py-12">
+                        <p className="text-red-600 mb-4">{error}</p>
+                        <Button onClick={fetchPendingExperts} variant="outline">
+                            Try Again
+                        </Button>
+                    </div>
+                ) : experts.length === 0 ? (
+                    <div className="text-center py-12">
+                        <p className="text-gray-500">No pending expert applications</p>
+                    </div>
+                ) : (
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-gray-50 text-gray-500 border-b">
+                            <tr>
+                                <th className="px-6 py-3 font-medium">Name</th>
+                                <th className="px-6 py-3 font-medium">Specialty</th>
+                                <th className="px-6 py-3 font-medium">Email</th>
+                                <th className="px-6 py-3 font-medium">Applied</th>
+                                <th className="px-6 py-3 font-medium text-right">Actions</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {experts.map(expert => (
+                                <tr key={expert._id}>
+                                    <td className="px-6 py-4 font-medium">{expert.fullName || expert.name}</td>
+                                    <td className="px-6 py-4 text-gray-500">{expert.specialty || expert.specialties?.[0] || 'N/A'}</td>
+                                    <td className="px-6 py-4 text-gray-500">{expert.email}</td>
+                                    <td className="px-6 py-4 text-gray-500">{formatDate(expert.createdAt)}</td>
+                                    <td className="px-6 py-4 text-right space-x-2">
+                                        <button
+                                            onClick={() => handleApprove(expert._id)}
+                                            disabled={processingId === expert._id}
+                                            className="text-emerald-600 hover:bg-emerald-50 p-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                            title="Approve expert"
+                                        >
+                                            {processingId === expert._id ? (
+                                                <Loader2 className="animate-spin" size={18} />
+                                            ) : (
+                                                <Check size={18} />
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => handleReject(expert._id)}
+                                            disabled={processingId === expert._id}
+                                            className="text-red-600 hover:bg-red-50 p-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                            title="Reject expert"
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
             </Card>
         </div>
     );
