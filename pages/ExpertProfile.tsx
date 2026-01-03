@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { EXPERTS } from '../data';
 import { Button, Card, Badge } from '../components/UI';
-import { BookingModal } from '../components/BookingModal';
+import { BookSessionModal } from '../components/BookSessionModal';
 import { Star, MapPin, Calendar, Clock, Award, ShieldCheck, MessageSquare, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SignInRequiredModal } from '../components/SignInRequiredModal';
 
 const ExpertProfile: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
     const expert = EXPERTS.find(e => e.id === id) || EXPERTS[0];
     const [isBookingOpen, setIsBookingOpen] = useState(false);
     const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
@@ -20,6 +21,12 @@ const ExpertProfile: React.FC = () => {
         } else {
             setIsSignInModalOpen(true);
         }
+    };
+
+    const handleBookingSuccess = () => {
+        setIsBookingOpen(false);
+        // Redirect to user's sessions page or show success message
+        navigate('/dashboard/sessions');
     };
 
     return (
@@ -161,7 +168,12 @@ const ExpertProfile: React.FC = () => {
                 </div>
             </div>
 
-            <BookingModal expert={expert} isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
+            <BookSessionModal
+                expert={expert}
+                isOpen={isBookingOpen}
+                onClose={() => setIsBookingOpen(false)}
+                onSuccess={handleBookingSuccess}
+            />
             <SignInRequiredModal isOpen={isSignInModalOpen} onClose={() => setIsSignInModalOpen(false)} />
         </div>
     );
