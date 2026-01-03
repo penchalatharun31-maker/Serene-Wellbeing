@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge, Input, ImageUpload } from '../components/UI';
 import { UPCOMING_SESSIONS, PAST_SESSIONS, REVENUE_DATA, ENGAGEMENT_DATA } from '../data';
-import { Activity, BadgeCheck, BarChart2, Calendar, CheckCircle, ChevronRight, Clock, CreditCard, DollarSign, Download, LayoutDashboard, Mail, MessageCircle, Plus, PlusCircle, Search, Settings, ShieldCheck, Star, TrendingUp, Trash, Users, Video, XCircle, ArrowRight, Briefcase, FileText } from 'lucide-react';
+import { Activity, BadgeCheck, BarChart2, Calendar, CheckCircle, ChevronRight, Clock, CreditCard, DollarSign, Download, LayoutDashboard, Mail, MessageCircle, Plus, PlusCircle, Search, Settings, ShieldCheck, Star, TrendingUp, Trash, Users, Video, XCircle, ArrowRight, Briefcase, FileText, Loader2 } from 'lucide-react';
+import apiClient from '../services/api';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
@@ -431,63 +432,270 @@ export const ExpertBookings: React.FC = () => {
 };
 
 export const ExpertAvailability: React.FC = () => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const hours = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
-    const [selectedSlots, setSelectedSlots] = useState<string[]>(['Mon-9:00 AM', 'Mon-10:00 AM', 'Tue-10:00 AM']);
+    const { user } = useAuth();
+    const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const dayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-    const toggleSlot = (day: string, hour: string) => {
-        const key = `${day}-${hour}`;
-        if (selectedSlots.includes(key)) {
-            setSelectedSlots(selectedSlots.filter(s => s !== key));
-        } else {
-            setSelectedSlots([...selectedSlots, key]);
+    const [availability, setAvailability] = useState<Record<string, Array<{ start: string; end: string }>>>({
+        monday: [],
+        tuesday: [],
+        wednesday: [],
+        thursday: [],
+        friday: [],
+        saturday: [],
+        sunday: [],
+    });
+    const [timezone, setTimezone] = useState('America/New_York');
+    const [slotDuration, setSlotDuration] = useState(60);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (user?._id) {
+            fetchAvailability();
+        }
+    }, [user]);
+
+    const fetchAvailability = async () => {
+        if (!user?._id) {
+            setError('User not authenticated');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            setError(null);
+            // Fetch expert profile to get current availability
+            const response = await apiClient.get(`/experts/user/${user._id}`);
+            const expert = response.data.data;
+
+            if (expert.availability) {
+                setAvailability(expert.availability);
+            }
+            if (expert.timezone) {
+                setTimezone(expert.timezone);
+            }
+            if (expert.slotDuration) {
+                setSlotDuration(expert.slotDuration);
+            }
+        } catch (err: any) {
+            console.error('Error fetching availability:', err);
+            setError(err.message || 'Failed to load availability');
+        } finally {
+            setLoading(false);
         }
     };
+
+    const handleSaveChanges = async () => {
+        try {
+            setSaving(true);
+            setError(null);
+            setSuccessMessage(null);
+
+            await apiClient.put('/experts/my-availability', {
+                availability,
+                timezone,
+                slotDuration,
+            });
+
+            setSuccessMessage('Availability updated successfully!');
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (err: any) {
+            console.error('Error saving availability:', err);
+            setError(err.message || 'Failed to save availability');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const addTimeSlot = (day: string) => {
+        setAvailability(prev => ({
+            ...prev,
+            [day]: [...prev[day], { start: '09:00', end: '17:00' }],
+        }));
+    };
+
+    const removeTimeSlot = (day: string, index: number) => {
+        setAvailability(prev => ({
+            ...prev,
+            [day]: prev[day].filter((_, i) => i !== index),
+        }));
+    };
+
+    const updateTimeSlot = (day: string, index: number, field: 'start' | 'end', value: string) => {
+        setAvailability(prev => ({
+            ...prev,
+            [day]: prev[day].map((slot, i) =>
+                i === index ? { ...slot, [field]: value } : slot
+            ),
+        }));
+    };
+
+    const copyToAllDays = (day: string) => {
+        const slots = availability[day];
+        const newAvailability = { ...availability };
+        dayNames.forEach(d => {
+            newAvailability[d] = JSON.parse(JSON.stringify(slots));
+        });
+        setAvailability(newAvailability);
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="animate-spin text-emerald-600" size={32} />
+                <span className="ml-3 text-gray-600">Loading availability settings...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-900">Availability Management</h1>
                 <div className="flex gap-2">
-                    <Button variant="outline">Sync Google Calendar</Button>
-                    <Button>Save Changes</Button>
+                    <Button
+                        onClick={handleSaveChanges}
+                        disabled={saving}
+                    >
+                        {saving ? (
+                            <>
+                                <Loader2 className="animate-spin mr-2" size={16} />
+                                Saving...
+                            </>
+                        ) : (
+                            'Save Changes'
+                        )}
+                    </Button>
                 </div>
             </div>
 
+            {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                    {error}
+                </div>
+            )}
+
+            {successMessage && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg">
+                    {successMessage}
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="p-6">
+                    <h3 className="font-bold text-gray-900 mb-4">Settings</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Timezone
+                            </label>
+                            <select
+                                value={timezone}
+                                onChange={(e) => setTimezone(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            >
+                                <option value="America/New_York">Eastern Time (ET)</option>
+                                <option value="America/Chicago">Central Time (CT)</option>
+                                <option value="America/Denver">Mountain Time (MT)</option>
+                                <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                                <option value="Asia/Kolkata">India Standard Time (IST)</option>
+                                <option value="Europe/London">Greenwich Mean Time (GMT)</option>
+                                <option value="Europe/Paris">Central European Time (CET)</option>
+                                <option value="Asia/Tokyo">Japan Standard Time (JST)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Session Duration (minutes)
+                            </label>
+                            <select
+                                value={slotDuration}
+                                onChange={(e) => setSlotDuration(Number(e.target.value))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            >
+                                <option value={15}>15 minutes</option>
+                                <option value={30}>30 minutes</option>
+                                <option value={60}>60 minutes</option>
+                            </select>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card className="p-6">
+                    <h3 className="font-bold text-gray-900 mb-4">Quick Tips</h3>
+                    <ul className="space-y-2 text-sm text-gray-600">
+                        <li>• Set your weekly recurring availability</li>
+                        <li>• Use 24-hour format (HH:MM)</li>
+                        <li>• You can add multiple time slots per day</li>
+                        <li>• Click "Copy to all days" to replicate a schedule</li>
+                    </ul>
+                </Card>
+            </div>
+
             <Card className="p-6">
-                <p className="text-sm text-gray-500 mb-6">Click on the slots below to mark your availability for recurring weekly sessions.</p>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-center text-sm">
-                        <thead>
-                            <tr>
-                                <th className="p-2"></th>
-                                {days.map(day => (
-                                    <th key={day} className="p-2 font-semibold text-gray-700">{day}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {hours.map(hour => (
-                                <tr key={hour}>
-                                    <td className="p-2 font-medium text-gray-500 text-right pr-4">{hour}</td>
-                                    {days.map(day => {
-                                        const isSelected = selectedSlots.includes(`${day}-${hour}`);
-                                        return (
-                                            <td key={`${day}-${hour}`} className="p-1">
-                                                <div
-                                                    onClick={() => toggleSlot(day, hour)}
-                                                    className={`h-10 rounded-md cursor-pointer transition-all border ${isSelected
-                                                        ? 'bg-emerald-50 border-emerald-600 shadow-sm'
-                                                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                                                        }`}
-                                                ></div>
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <h3 className="font-bold text-gray-900 mb-6">Weekly Schedule</h3>
+                <div className="space-y-4">
+                    {dayNames.map((day, idx) => (
+                        <div key={day} className="border-b border-gray-100 pb-4 last:border-0">
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-medium text-gray-900">{dayLabels[idx]}</h4>
+                                <div className="flex gap-2">
+                                    {availability[day].length > 0 && (
+                                        <button
+                                            onClick={() => copyToAllDays(day)}
+                                            className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                                        >
+                                            Copy to all days
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => addTimeSlot(day)}
+                                        className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center"
+                                    >
+                                        <Plus size={14} className="mr-1" />
+                                        Add time slot
+                                    </button>
+                                </div>
+                            </div>
+
+                            {availability[day].length === 0 ? (
+                                <p className="text-sm text-gray-400 italic">No availability set</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {availability[day].map((slot, index) => (
+                                        <div key={index} className="flex items-center gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="time"
+                                                    value={slot.start}
+                                                    onChange={(e) => updateTimeSlot(day, index, 'start', e.target.value)}
+                                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                />
+                                                <span className="text-gray-400">to</span>
+                                                <input
+                                                    type="time"
+                                                    value={slot.end}
+                                                    onChange={(e) => updateTimeSlot(day, index, 'end', e.target.value)}
+                                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={() => removeTimeSlot(day, index)}
+                                                className="text-red-600 hover:text-red-700 p-1"
+                                                title="Remove time slot"
+                                            >
+                                                <Trash size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </div>
             </Card>
         </div>
