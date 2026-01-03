@@ -232,41 +232,201 @@ const CommissionTracking: React.FC = () => {
 };
 
 const PayoutsManagement: React.FC = () => {
-    const payouts = [
-        { expert: 'Dr. Anya Sharma', balance: '$1,240.00', nextPayout: 'Fri, Jul 19', status: 'Processing' },
-        { expert: 'Ethan Carter', balance: '$580.00', nextPayout: 'Fri, Jul 19', status: 'Pending' },
-        { expert: 'Liam Foster', balance: '$890.00', nextPayout: 'Fri, Jul 19', status: 'Pending' },
-    ];
+    const [payouts, setPayouts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [processingId, setProcessingId] = useState<string | null>(null);
+    const [rejectModalOpen, setRejectModalOpen] = useState(false);
+    const [selectedPayout, setSelectedPayout] = useState<any>(null);
+    const [rejectReason, setRejectReason] = useState('');
+
+    useEffect(() => {
+        fetchPendingPayouts();
+    }, []);
+
+    const fetchPendingPayouts = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await apiClient.get('/payouts/pending');
+            setPayouts(response.data.data || []);
+        } catch (err: any) {
+            console.error('Error fetching payouts:', err);
+            setError(err.message || 'Failed to load payouts');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleApprove = async (payoutId: string) => {
+        try {
+            setProcessingId(payoutId);
+            await apiClient.put(`/payouts/${payoutId}/approve`, {});
+            await fetchPendingPayouts();
+        } catch (err: any) {
+            console.error('Error approving payout:', err);
+            alert(err.message || 'Failed to approve payout');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleRejectClick = (payout: any) => {
+        setSelectedPayout(payout);
+        setRejectModalOpen(true);
+    };
+
+    const handleRejectConfirm = async () => {
+        if (!selectedPayout) return;
+
+        try {
+            setProcessingId(selectedPayout._id);
+            await apiClient.put(`/payouts/${selectedPayout._id}/reject`, {
+                reason: rejectReason || 'No specific reason provided',
+            });
+            setRejectModalOpen(false);
+            setRejectReason('');
+            setSelectedPayout(null);
+            await fetchPendingPayouts();
+        } catch (err: any) {
+            console.error('Error rejecting payout:', err);
+            alert(err.message || 'Failed to reject payout');
+        } finally {
+            setProcessingId(null);
+        }
+    };
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900">Payout Management</h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-gray-900">Payout Management</h1>
+                {!loading && (
+                    <button
+                        onClick={fetchPendingPayouts}
+                        className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                    >
+                        Refresh
+                    </button>
+                )}
+            </div>
+
             <Card>
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 text-gray-500 border-b">
-                        <tr>
-                            <th className="px-6 py-3 font-medium">Expert</th>
-                            <th className="px-6 py-3 font-medium">Pending Balance</th>
-                            <th className="px-6 py-3 font-medium">Next Payout</th>
-                            <th className="px-6 py-3 font-medium">Status</th>
-                            <th className="px-6 py-3 font-medium text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {payouts.map((p, idx) => (
-                            <tr key={idx}>
-                                <td className="px-6 py-4 font-medium">{p.expert}</td>
-                                <td className="px-6 py-4 font-bold text-gray-900">{p.balance}</td>
-                                <td className="px-6 py-4 text-gray-500">{p.nextPayout}</td>
-                                <td className="px-6 py-4"><Badge color={p.status === 'Processing' ? 'blue' : 'gray'}>{p.status}</Badge></td>
-                                <td className="px-6 py-4 text-right">
-                                    <Button size="sm" variant="outline">Process</Button>
-                                </td>
+                {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="animate-spin text-emerald-600" size={32} />
+                        <span className="ml-3 text-gray-600">Loading payout requests...</span>
+                    </div>
+                ) : error ? (
+                    <div className="text-center py-12">
+                        <p className="text-red-600 mb-4">{error}</p>
+                        <Button onClick={fetchPendingPayouts} variant="outline">
+                            Try Again
+                        </Button>
+                    </div>
+                ) : payouts.length === 0 ? (
+                    <div className="text-center py-12">
+                        <p className="text-gray-500">No pending payout requests</p>
+                    </div>
+                ) : (
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-gray-50 text-gray-500 border-b">
+                            <tr>
+                                <th className="px-6 py-3 font-medium">Expert</th>
+                                <th className="px-6 py-3 font-medium">Amount</th>
+                                <th className="px-6 py-3 font-medium">Payment Method</th>
+                                <th className="px-6 py-3 font-medium">Requested</th>
+                                <th className="px-6 py-3 font-medium text-right">Actions</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {payouts.map(payout => (
+                                <tr key={payout._id}>
+                                    <td className="px-6 py-4 font-medium">
+                                        {payout.expertId?.userId?.name || 'Unknown Expert'}
+                                    </td>
+                                    <td className="px-6 py-4 font-bold text-gray-900">
+                                        {payout.currency} {payout.amount.toFixed(2)}
+                                    </td>
+                                    <td className="px-6 py-4 text-gray-500">
+                                        {payout.paymentMethod.replace('_', ' ')}
+                                    </td>
+                                    <td className="px-6 py-4 text-gray-500">
+                                        {new Date(payout.requestedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    </td>
+                                    <td className="px-6 py-4 text-right space-x-2">
+                                        <button
+                                            onClick={() => handleApprove(payout._id)}
+                                            disabled={processingId === payout._id}
+                                            className="text-emerald-600 hover:bg-emerald-50 p-1 rounded disabled:opacity-50"
+                                            title="Approve payout"
+                                        >
+                                            {processingId === payout._id ? (
+                                                <Loader2 className="animate-spin" size={18} />
+                                            ) : (
+                                                <Check size={18} />
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => handleRejectClick(payout)}
+                                            disabled={processingId === payout._id}
+                                            className="text-red-600 hover:bg-red-50 p-1 rounded disabled:opacity-50"
+                                            title="Reject payout"
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
             </Card>
+
+            {/* Reject Modal */}
+            {rejectModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <Card className="max-w-md w-full p-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Reject Payout Request</h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Please provide a reason for rejecting this payout request. This will be shared with the expert.
+                        </p>
+                        <textarea
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4"
+                            rows={4}
+                            placeholder="e.g., Insufficient documentation, invalid bank details"
+                        />
+                        <div className="flex gap-3 justify-end">
+                            <Button
+                                variant="ghost"
+                                onClick={() => {
+                                    setRejectModalOpen(false);
+                                    setRejectReason('');
+                                    setSelectedPayout(null);
+                                }}
+                                disabled={processingId === selectedPayout?._id}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleRejectConfirm}
+                                disabled={processingId === selectedPayout?._id}
+                                className="bg-red-600 hover:bg-red-700"
+                            >
+                                {processingId === selectedPayout?._id ? (
+                                    <>
+                                        <Loader2 className="animate-spin mr-2" size={16} />
+                                        Rejecting...
+                                    </>
+                                ) : (
+                                    'Reject Payout'
+                                )}
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };
