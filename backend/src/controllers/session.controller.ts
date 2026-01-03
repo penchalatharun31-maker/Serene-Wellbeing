@@ -19,8 +19,20 @@ export const createSession = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { expertId, scheduledDate, scheduledTime, duration, notes, useCredits } =
-      req.body;
+    const {
+      expertId,
+      scheduledDate,
+      scheduledTime,
+      endTime,
+      duration,
+      price,
+      currency,
+      notes,
+      useCredits,
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    } = req.body;
 
     // Validate expert
     const expert = await Expert.findById(expertId).populate('userId');
@@ -48,11 +60,14 @@ export const createSession = async (
       throw new AppError('This time slot is already booked', 409);
     }
 
-    // Calculate price
+    // Calculate price (use provided price if from Razorpay payment, otherwise calculate)
     const durationHours = duration / 60;
-    const totalPrice = expert.hourlyRate * durationHours;
+    const totalPrice = price || (expert.hourlyRate * durationHours);
     const platformCommission = totalPrice * PLATFORM_COMMISSION_RATE;
     const expertCommission = totalPrice - platformCommission;
+
+    // Check if this is a Razorpay payment
+    const isRazorpayPayment = !!(razorpayOrderId && razorpayPaymentId && razorpaySignature);
 
     // Check if user wants to use credits
     let creditsUsed = 0;
@@ -104,11 +119,16 @@ export const createSession = async (
       expertId,
       scheduledDate: new Date(scheduledDate),
       scheduledTime,
+      endTime: endTime,
       duration,
       price: totalPrice,
+      currency: currency || expert.currency || 'INR',
       notes,
-      paymentStatus: amountToPay === 0 ? 'paid' : 'pending',
-      status: 'pending',
+      paymentStatus: isRazorpayPayment || amountToPay === 0 ? 'paid' : 'pending',
+      status: isRazorpayPayment ? 'confirmed' : 'pending',
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
       metadata: {
         expertCommission,
         platformCommission,
@@ -123,12 +143,14 @@ export const createSession = async (
       sessionId: session._id,
       type: 'payment',
       amount: totalPrice,
-      status: amountToPay === 0 ? 'completed' : 'pending',
-      paymentMethod: useCredits ? 'credits' : 'card',
+      status: isRazorpayPayment || amountToPay === 0 ? 'completed' : 'pending',
+      paymentMethod: isRazorpayPayment ? 'razorpay' : (useCredits ? 'credits' : 'card'),
       metadata: {
         platformFee: platformCommission,
         expertEarnings: expertCommission,
         description: `Session booking with ${(expert.userId as any).name}`,
+        razorpayOrderId: razorpayOrderId || undefined,
+        razorpayPaymentId: razorpayPaymentId || undefined,
       },
     });
 

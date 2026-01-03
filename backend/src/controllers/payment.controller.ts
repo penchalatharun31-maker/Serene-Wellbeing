@@ -93,6 +93,45 @@ export const createRazorpayOrder = async (req: AuthRequest, res: Response, next:
   }
 };
 
+// Razorpay Payment Verification
+export const verifyRazorpayPayment = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      throw new AppError('Missing payment verification parameters', 400);
+    }
+
+    // Verify signature
+    const crypto = require('crypto');
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (expectedSignature !== razorpay_signature) {
+      logger.error('Razorpay signature verification failed');
+      throw new AppError('Payment verification failed', 400);
+    }
+
+    logger.info(`Razorpay payment verified successfully: ${razorpay_payment_id}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment verified successfully',
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id,
+    });
+  } catch (error: any) {
+    logger.error('Razorpay payment verification failed:', error);
+    next(error instanceof AppError ? error : new AppError('Payment verification failed', 500));
+  }
+};
+
 export const confirmPayment = async (
   req: AuthRequest,
   res: Response,
