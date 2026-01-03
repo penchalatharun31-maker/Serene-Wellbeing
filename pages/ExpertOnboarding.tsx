@@ -406,7 +406,8 @@ const ExpertOnboarding: React.FC = () => {
     const handleFinish = async () => {
         try {
             await signup(formData.name || 'New Expert', formData.email || 'expert@serene.com', 'password123', 'expert', formData.country, formData.currency);
-            navigate('/dashboard/expert');
+            // Redirect to under review page since new experts need admin approval
+            navigate('/under-review');
         } catch (e) {
             console.error(e);
         }

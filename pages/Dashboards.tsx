@@ -230,6 +230,31 @@ export const UserSettings: React.FC = () => (
 
 export const ExpertDashboard: React.FC = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
+
+    // Check if expert is approved, redirect to under-review if pending
+    useEffect(() => {
+        const checkApprovalStatus = async () => {
+            if (!user?._id) return;
+
+            try {
+                const response = await apiClient.get(`/experts/user/${user._id}`);
+                const expert = response.data.data;
+
+                // Redirect to under-review if not approved
+                if (expert.approvalStatus !== 'approved' || !expert.isApproved) {
+                    navigate('/under-review');
+                }
+            } catch (err: any) {
+                // If expert profile doesn't exist, redirect to onboarding
+                if (err.status === 404) {
+                    navigate('/expert-onboarding');
+                }
+            }
+        };
+
+        checkApprovalStatus();
+    }, [user, navigate]);
 
     // Mock expert data for completeness calculation
     const mockExpert = {

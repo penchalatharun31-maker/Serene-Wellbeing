@@ -8,6 +8,7 @@ import Landing from './pages/Landing';
 import Onboarding from './pages/Onboarding';
 import CompanyOnboarding from './pages/CompanyOnboarding';
 import ExpertOnboarding from './pages/ExpertOnboarding';
+import UnderReview from './pages/UnderReview';
 import Browse from './pages/Browse';
 import ExpertProfile from './pages/ExpertProfile';
 import Login from './pages/Login';
@@ -71,6 +72,7 @@ const App: React.FC = () => {
                     <Route path="/onboarding" element={<Onboarding />} />
                     <Route path="/company-onboarding" element={<CompanyOnboarding />} />
                     <Route path="/expert-onboarding" element={<ExpertOnboarding />} />
+                    <Route path="/under-review" element={<UnderReview />} />
 
                     {/* Public Routes */}
                     <Route element={<PublicLayout />}>
