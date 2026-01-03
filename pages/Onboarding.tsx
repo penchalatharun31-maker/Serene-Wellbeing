@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button, Card, Badge, Input } from '../components/UI';
 import { Sparkles, ArrowRight, ArrowLeft, CheckCircle, Heart, Moon, Users, Briefcase, Activity, Calendar, Play } from 'lucide-react';
 import { EXPERTS } from '../data';
+import { BookSessionModal } from '../components/BookSessionModal';
 
 // --- Sub-Components moved outside to fix focus bug ---
 
@@ -200,7 +201,7 @@ const Step3Preferences = ({ selections, setSelections, nextStep, prevStep }: any
     </div>
 );
 
-const Step4Results = ({ selections, nextStep, prevStep }: any) => {
+const Step4Results = ({ selections, nextStep, prevStep, setSelectedExpert }: any) => {
     const navigate = useNavigate();
     // Basic Matching Algorithm
     const getMatchScore = (expert: any) => {
@@ -276,7 +277,10 @@ const Step4Results = ({ selections, nextStep, prevStep }: any) => {
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-4 mt-8 pt-6 border-t border-gray-50">
-                            <Button size="lg" className="flex-1 shadow-lg shadow-emerald-200" onClick={nextStep}>Book Free Consultation</Button>
+                            <Button size="lg" className="flex-1 shadow-lg shadow-emerald-200" onClick={() => {
+                                setSelectedExpert(expert);
+                                nextStep();
+                            }}>Book Session Now</Button>
                             <Button size="lg" variant="outline" className="flex-1" onClick={() => navigate(`/expert/${expert.id}`)}>View Full Profile</Button>
                             <button className="p-3 text-gray-400 hover:text-emerald-600 transition-colors">
                                 <Heart size={24} />
@@ -341,62 +345,136 @@ const Step5Account = ({ handleGoogleLogin, login, nextStep, prevStep }: any) => 
     </div>
 );
 
-const Step6Booking = ({ navigate }: any) => (
-    <div className="max-w-4xl mx-auto space-y-10 pb-20">
-        <div className="text-center space-y-3">
-            <Badge color="emerald">Step 6: Confirm Consultation</Badge>
-            <h2 className="text-3xl font-extrabold text-gray-900">Expert Availability</h2>
-            <p className="text-gray-500">Select a time for your 15-minute free discovery call.</p>
-        </div>
+const Step6Booking = ({ navigate, selectedExpert }: any) => {
+    const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+    const [currentMonth, setCurrentMonth] = useState(new Date());
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            <Card className="p-6">
-                <div className="flex justify-between items-center mb-8">
-                    <h3 className="font-bold text-lg text-gray-900">December 2025</h3>
-                    <div className="flex gap-2">
-                        <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50"><ArrowLeft size={16} /></button>
-                        <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50"><ArrowRight size={16} /></button>
-                    </div>
-                </div>
-                <div className="grid grid-cols-7 gap-2 mb-4">
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d} className="text-center text-xs font-bold text-gray-400 uppercase">{d}</div>)}
-                </div>
-                <div className="grid grid-cols-7 gap-2">
-                    {Array.from({ length: 31 }).map((_, i) => (
-                        <button
-                            key={i}
-                            className={`h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${i + 1 === 23 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 scale-110' : i + 1 > 20 ? 'hover:bg-emerald-50 text-gray-700' : 'text-gray-300 cursor-not-allowed'}`}
-                            disabled={i + 1 <= 20}
-                        >
-                            {i + 1}
-                        </button>
-                    ))}
-                </div>
-            </Card>
+    // Get current month name and year dynamically
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const currentMonthName = monthNames[currentMonth.getMonth()];
+    const currentYear = currentMonth.getFullYear();
 
-            <div className="space-y-6">
-                <Card className="p-6 space-y-6">
-                    <h3 className="font-bold text-gray-900">Available slots for Dec 23</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                        {['10:00 AM', '11:30 AM', '2:00 PM', '4:30 PM', '6:00 PM', '7:15 PM'].map(time => (
+    const previousMonth = () => {
+        const today = new Date();
+        const newMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1);
+        // Don't allow going to past months
+        if (newMonth >= new Date(today.getFullYear(), today.getMonth())) {
+            setCurrentMonth(newMonth);
+        }
+    };
+
+    const nextMonth = () => {
+        setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+    };
+
+    // Get the expert (using first matched expert from EXPERTS or default)
+    const expert = selectedExpert || EXPERTS[0];
+
+    const handleBookingSuccess = () => {
+        setIsBookingModalOpen(false);
+        // Navigate to dashboard after successful booking
+        navigate('/dashboard/user');
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-10 pb-20">
+            <div className="text-center space-y-3">
+                <Badge color="emerald">Step 6: Confirm Consultation</Badge>
+                <h2 className="text-3xl font-extrabold text-gray-900">Book Your Session</h2>
+                <p className="text-gray-500">Ready to book your session with {expert.name}? Click below to schedule and complete payment.</p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                {/* Preview Calendar - showing current month */}
+                <Card className="p-6">
+                    <div className="flex justify-between items-center mb-8">
+                        <h3 className="font-bold text-lg text-gray-900">{currentMonthName} {currentYear}</h3>
+                        <div className="flex gap-2">
                             <button
-                                key={time}
-                                className={`py-3 rounded-xl border-2 font-bold text-sm transition-all ${time === '6:00 PM' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 hover:border-emerald-200 text-gray-600'}`}
+                                onClick={previousMonth}
+                                disabled={currentMonth.getMonth() === new Date().getMonth() && currentMonth.getFullYear() === new Date().getFullYear()}
+                                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {time}
+                                <ArrowLeft size={16} />
                             </button>
-                        ))}
+                            <button onClick={nextMonth} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                <ArrowRight size={16} />
+                            </button>
+                        </div>
                     </div>
+                    <div className="grid grid-cols-7 gap-2 mb-4">
+                        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d} className="text-center text-xs font-bold text-gray-400 uppercase">{d}</div>)}
+                    </div>
+                    <div className="grid grid-cols-7 gap-2">
+                        {Array.from({ length: new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate() }).map((_, i) => {
+                            const day = i + 1;
+                            const today = new Date();
+                            const currentDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                            const isPast = currentDate < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+                            return (
+                                <button
+                                    key={i}
+                                    className={`h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all ${
+                                        isPast
+                                            ? 'text-gray-300 cursor-not-allowed'
+                                            : 'hover:bg-emerald-50 text-gray-700 hover:border hover:border-emerald-200'
+                                    }`}
+                                    disabled={isPast}
+                                >
+                                    {day}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-4 text-center">Preview only - Full calendar in booking modal</p>
                 </Card>
 
-                <Button size="lg" className="w-full h-16 text-xl shadow-xl shadow-emerald-200" onClick={() => navigate('/dashboard/user')}>
-                    Confirm Booking
-                </Button>
-                <p className="text-center text-xs text-gray-500">No payment required for discovery calls. Confirmation sent via WhatsApp.</p>
+                {/* Expert Info and Book Button */}
+                <div className="space-y-6">
+                    <Card className="p-6 space-y-4">
+                        <div className="flex items-center gap-4">
+                            <img src={expert.image} className="w-16 h-16 rounded-full object-cover ring-4 ring-emerald-50" alt={expert.name} />
+                            <div>
+                                <h3 className="font-bold text-gray-900">{expert.name}</h3>
+                                <p className="text-sm text-emerald-600">{expert.title}</p>
+                            </div>
+                        </div>
+                        <div className="border-t pt-4">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm text-gray-600">Starting at</span>
+                                <span className="text-xl font-bold text-gray-900">₹{expert.price}/hr</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Activity size={16} className="text-yellow-500" />
+                                <span>{expert.rating} ({expert.reviews} reviews)</span>
+                            </div>
+                        </div>
+                    </Card>
+
+                    <Button
+                        size="lg"
+                        className="w-full h-16 text-xl shadow-xl shadow-emerald-200"
+                        onClick={() => setIsBookingModalOpen(true)}
+                    >
+                        Book Session & Pay
+                    </Button>
+                    <p className="text-center text-xs text-gray-500">
+                        You'll choose your date/time and complete payment in the next step
+                    </p>
+                </div>
             </div>
+
+            {/* Booking Modal with Payment Integration */}
+            <BookSessionModal
+                expert={expert}
+                isOpen={isBookingModalOpen}
+                onClose={() => setIsBookingModalOpen(false)}
+                onSuccess={handleBookingSuccess}
+            />
         </div>
-    </div>
-);
+    );
+};
 
 const Onboarding: React.FC = () => {
     const navigate = useNavigate();
@@ -414,6 +492,7 @@ const Onboarding: React.FC = () => {
         language: 'English',
         budget: 'Show all'
     });
+    const [selectedExpert, setSelectedExpert] = useState<any>(null);
 
     const totalSteps = 6;
 
@@ -450,9 +529,9 @@ const Onboarding: React.FC = () => {
                 {currentStep === 1 && <Step1EmotionalEntry selections={selections} setSelections={setSelections} nextStep={nextStep} />}
                 {currentStep === 2 && <Step2Assessment selections={selections} setSelections={setSelections} nextStep={nextStep} prevStep={prevStep} />}
                 {currentStep === 3 && <Step3Preferences selections={selections} setSelections={setSelections} nextStep={nextStep} prevStep={prevStep} />}
-                {currentStep === 4 && <Step4Results selections={selections} nextStep={nextStep} prevStep={prevStep} />}
+                {currentStep === 4 && <Step4Results selections={selections} nextStep={nextStep} prevStep={prevStep} setSelectedExpert={setSelectedExpert} />}
                 {currentStep === 5 && <Step5Account handleGoogleLogin={handleGoogleLogin} login={login} nextStep={nextStep} prevStep={prevStep} />}
-                {currentStep === 6 && <Step6Booking navigate={navigate} />}
+                {currentStep === 6 && <Step6Booking navigate={navigate} selectedExpert={selectedExpert} />}
             </div>
 
             {/* Trust Footer */}
