@@ -993,43 +993,291 @@ export const ExpertClients: React.FC = () => {
     );
 };
 
-export const ExpertEarnings: React.FC = () => (
-    <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Earnings</h1>
+export const ExpertEarnings: React.FC = () => {
+    const [earnings, setEarnings] = useState<any>(null);
+    const [payouts, setPayouts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [payoutModalOpen, setPayoutModalOpen] = useState(false);
+    const [payoutAmount, setPayoutAmount] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
+    const [upiId, setUpiId] = useState('');
+    const [bankDetails, setBankDetails] = useState({ accountHolderName: '', accountNumber: '', ifscCode: '' });
+    const [requesting, setRequesting] = useState(false);
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <StatCard label="Available for Payout" value="$1,250.00" icon={DollarSign} color="emerald" />
-            <StatCard label="Pending Clearance" value="$450.00" icon={Clock} color="orange" />
-            <Card className="p-6 flex flex-col justify-center items-center text-center">
-                <Button className="w-full mb-2">Withdraw Funds</Button>
-                <p className="text-xs text-gray-500">Payouts processed every Friday</p>
-            </Card>
-        </div>
+    useEffect(() => {
+        fetchEarnings();
+        fetchPayouts();
+    }, []);
 
-        <Card className="p-6">
-            <h3 className="font-bold text-gray-900 mb-6">Transaction History</h3>
-            <div className="space-y-4">
-                {[
-                    { id: 1, desc: "Session with Sarah J.", date: "Jul 12", amount: "+$120.00", status: "Cleared" },
-                    { id: 2, desc: "Session with Mike B.", date: "Jul 11", amount: "+$95.00", status: "Cleared" },
-                    { id: 3, desc: "Payout to Bank Account", date: "Jul 10", amount: "-$2,400.00", status: "Completed" },
-                    { id: 4, desc: "Session with Emily D.", date: "Jul 09", amount: "+$120.00", status: "Pending" },
-                ].map(tx => (
-                    <div key={tx.id} className="flex items-center justify-between p-4 border-b border-gray-50 last:border-0">
-                        <div>
-                            <p className="font-bold text-gray-900">{tx.desc}</p>
-                            <p className="text-xs text-gray-500">{tx.date}</p>
-                        </div>
-                        <div className="text-right">
-                            <p className={`font-bold ${tx.amount.startsWith('+') ? 'text-emerald-600' : 'text-gray-900'}`}>{tx.amount}</p>
-                            <span className={`text-xs ${tx.status === 'Pending' ? 'text-orange-500' : 'text-gray-400'}`}>{tx.status}</span>
-                        </div>
-                    </div>
-                ))}
+    const fetchEarnings = async () => {
+        try {
+            setLoading(true);
+            const response = await apiClient.get('/payouts/earnings');
+            setEarnings(response.data.data);
+        } catch (err: any) {
+            console.error('Error fetching earnings:', err);
+            setError(err.message || 'Failed to load earnings');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchPayouts = async () => {
+        try {
+            const response = await apiClient.get('/payouts/my-payouts');
+            setPayouts(response.data.data || []);
+        } catch (err: any) {
+            console.error('Error fetching payouts:', err);
+        }
+    };
+
+    const handleRequestPayout = async () => {
+        try {
+            setRequesting(true);
+            const amount = parseFloat(payoutAmount);
+
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+
+            const paymentDetails: any = {};
+            if (paymentMethod === 'upi') {
+                if (!upiId) {
+                    alert('Please enter UPI ID');
+                    return;
+                }
+                paymentDetails.upiId = upiId;
+            } else if (paymentMethod === 'bank_transfer') {
+                if (!bankDetails.accountHolderName || !bankDetails.accountNumber || !bankDetails.ifscCode) {
+                    alert('Please fill all bank details');
+                    return;
+                }
+                paymentDetails.accountHolderName = bankDetails.accountHolderName;
+                paymentDetails.accountNumber = bankDetails.accountNumber;
+                paymentDetails.ifscCode = bankDetails.ifscCode;
+            }
+
+            await apiClient.post('/payouts', {
+                amount,
+                paymentMethod,
+                paymentDetails,
+            });
+
+            setPayoutModalOpen(false);
+            setPayoutAmount('');
+            setUpiId('');
+            setBankDetails({ accountHolderName: '', accountNumber: '', ifscCode: '' });
+            await fetchEarnings();
+            await fetchPayouts();
+            alert('Payout request submitted successfully!');
+        } catch (err: any) {
+            console.error('Error requesting payout:', err);
+            alert(err.message || 'Failed to request payout');
+        } finally {
+            setRequesting(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="animate-spin text-emerald-600" size={32} />
+                <span className="ml-3 text-gray-600">Loading earnings...</span>
             </div>
-        </Card>
-    </div>
-);
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="text-center py-12">
+                <p className="text-red-600 mb-4">{error}</p>
+                <Button onClick={fetchEarnings} variant="outline">Try Again</Button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Earnings</h1>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <StatCard
+                    label="Available for Payout"
+                    value={`${earnings?.currency || 'INR'} ${earnings?.availableBalance?.toFixed(2) || '0.00'}`}
+                    icon={DollarSign}
+                    color="emerald"
+                />
+                <StatCard
+                    label="Pending Payouts"
+                    value={`${earnings?.currency || 'INR'} ${earnings?.pendingPayouts?.toFixed(2) || '0.00'}`}
+                    icon={Clock}
+                    color="orange"
+                />
+                <Card className="p-6 flex flex-col justify-center items-center text-center">
+                    <Button
+                        className="w-full mb-2"
+                        onClick={() => setPayoutModalOpen(true)}
+                        disabled={(earnings?.availableBalance || 0) <= 0}
+                    >
+                        Request Payout
+                    </Button>
+                    <p className="text-xs text-gray-500">Payouts processed within 3-5 business days</p>
+                </Card>
+            </div>
+
+            <Card className="p-6">
+                <h3 className="font-bold text-gray-900 mb-6">Payout History</h3>
+                {payouts.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No payout requests yet</p>
+                ) : (
+                    <div className="space-y-4">
+                        {payouts.map(payout => (
+                            <div key={payout._id} className="flex items-center justify-between p-4 border-b border-gray-50 last:border-0">
+                                <div>
+                                    <p className="font-bold text-gray-900">
+                                        Payout Request ({payout.paymentMethod.replace('_', ' ')})
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        {new Date(payout.requestedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-bold text-gray-900">-{payout.currency} {payout.amount.toFixed(2)}</p>
+                                    <span className={`text-xs ${
+                                        payout.status === 'pending' ? 'text-orange-500' :
+                                        payout.status === 'approved' ? 'text-blue-500' :
+                                        payout.status === 'completed' ? 'text-emerald-500' :
+                                        'text-red-500'
+                                    }`}>
+                                        {payout.status.charAt(0).toUpperCase() + payout.status.slice(1)}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Card>
+
+            {/* Payout Request Modal */}
+            {payoutModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <Card className="max-w-md w-full p-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Request Payout</h3>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Amount ({earnings?.currency || 'INR'})
+                                </label>
+                                <input
+                                    type="number"
+                                    value={payoutAmount}
+                                    onChange={(e) => setPayoutAmount(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    placeholder="0.00"
+                                    max={earnings?.availableBalance || 0}
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Available: {earnings?.currency || 'INR'} {earnings?.availableBalance?.toFixed(2) || '0.00'}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Payment Method
+                                </label>
+                                <select
+                                    value={paymentMethod}
+                                    onChange={(e) => setPaymentMethod(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                >
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="upi">UPI</option>
+                                </select>
+                            </div>
+
+                            {paymentMethod === 'upi' ? (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        UPI ID
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={upiId}
+                                        onChange={(e) => setUpiId(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        placeholder="yourname@upi"
+                                    />
+                                </div>
+                            ) : (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Account Holder Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={bankDetails.accountHolderName}
+                                            onChange={(e) => setBankDetails({ ...bankDetails, accountHolderName: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Account Number
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={bankDetails.accountNumber}
+                                            onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            IFSC Code
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={bankDetails.ifscCode}
+                                            onChange={(e) => setBankDetails({ ...bankDetails, ifscCode: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 justify-end mt-6">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setPayoutModalOpen(false)}
+                                disabled={requesting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleRequestPayout}
+                                disabled={requesting}
+                            >
+                                {requesting ? (
+                                    <>
+                                        <Loader2 className="animate-spin mr-2" size={16} />
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    'Submit Request'
+                                )}
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const ExpertSettings: React.FC = () => (
     <div className="space-y-6">
