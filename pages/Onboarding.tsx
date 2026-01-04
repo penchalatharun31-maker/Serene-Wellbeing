@@ -507,10 +507,14 @@ const Onboarding: React.FC = () => {
 
     const handleGoogleLogin = async () => {
         try {
-            await login('guest@serene.com', 'password123', true);
+            // TODO: Implement actual Google OAuth
+            // For now, create a mock user account with role='user'
+            const mockEmail = `user${Date.now()}@serene.com`;
+            await login(mockEmail, 'password123', true);
             nextStep();
         } catch (e) {
-            console.error(e);
+            console.error('Login error:', e);
+            alert('Google login not yet implemented. Please use email signup below.');
         }
     };
 
