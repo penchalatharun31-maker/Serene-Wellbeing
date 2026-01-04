@@ -345,7 +345,7 @@ const Step5Account = ({ handleGoogleLogin, login, nextStep, prevStep }: any) => 
     </div>
 );
 
-const Step6Booking = ({ navigate, selectedExpert }: any) => {
+const Step6Booking = ({ navigate, selectedExpert, userRole }: any) => {
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -372,8 +372,10 @@ const Step6Booking = ({ navigate, selectedExpert }: any) => {
 
     const handleBookingSuccess = () => {
         setIsBookingModalOpen(false);
-        // Navigate to dashboard after successful booking
-        navigate('/dashboard/user');
+        // Navigate to dashboard based on user role
+        // B2C users (onboarding flow) will have role='user'
+        const dashboardRoute = `/dashboard/${userRole || 'user'}`;
+        navigate(dashboardRoute);
     };
 
     return (
@@ -478,7 +480,7 @@ const Step6Booking = ({ navigate, selectedExpert }: any) => {
 
 const Onboarding: React.FC = () => {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login, user } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const currentStep = parseInt(searchParams.get('step') || '1');
     const [selections, setSelections] = useState<any>({
@@ -531,7 +533,7 @@ const Onboarding: React.FC = () => {
                 {currentStep === 3 && <Step3Preferences selections={selections} setSelections={setSelections} nextStep={nextStep} prevStep={prevStep} />}
                 {currentStep === 4 && <Step4Results selections={selections} nextStep={nextStep} prevStep={prevStep} setSelectedExpert={setSelectedExpert} />}
                 {currentStep === 5 && <Step5Account handleGoogleLogin={handleGoogleLogin} login={login} nextStep={nextStep} prevStep={prevStep} />}
-                {currentStep === 6 && <Step6Booking navigate={navigate} selectedExpert={selectedExpert} />}
+                {currentStep === 6 && <Step6Booking navigate={navigate} selectedExpert={selectedExpert} userRole={user?.role || 'user'} />}
             </div>
 
             {/* Trust Footer */}
