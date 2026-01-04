@@ -427,7 +427,13 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
               </>
             )}
             {step === 'success' && (
-              <Button onClick={onClose} className="w-full sm:w-auto">
+              <Button onClick={() => {
+                if (onSuccess) {
+                  onSuccess();
+                } else {
+                  onClose();
+                }
+              }} className="w-full sm:w-auto">
                 Done
               </Button>
             )}
