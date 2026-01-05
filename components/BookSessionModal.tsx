@@ -40,7 +40,7 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
 
     try {
       setError(null);
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
       // Calculate price based on duration

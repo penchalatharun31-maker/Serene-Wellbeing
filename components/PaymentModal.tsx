@@ -119,7 +119,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                                         <Button className="w-full" onClick={async () => {
                                             if (!selectedPack) return;
                                             try {
-                                                const token = localStorage.getItem('auth_token');
+                                                const token = localStorage.getItem('token');
                                                 // 1. Create Order
                                                 const res = await fetch('http://localhost:5000/api/payments/create-razorpay-order', {
                                                     method: 'POST',
