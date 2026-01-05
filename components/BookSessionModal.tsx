@@ -40,6 +40,22 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
 
     try {
       setError(null);
+
+      // Check if this is a demo/mock expert (onboarding flow with IDs like '1', '2', '3')
+      const isMockExpert = /^[0-9]$/.test(expert.id);
+
+      if (isMockExpert) {
+        // DEMO MODE: Simulate successful booking without backend
+        setStep('processing');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setStep('success');
+        setTimeout(() => {
+          if (onSuccess) onSuccess();
+        }, 1500);
+        return;
+      }
+
+      // REAL PAYMENT FLOW for actual experts
       const token = localStorage.getItem('token');
 
       if (!token) {
