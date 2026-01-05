@@ -300,50 +300,141 @@ const Step4Results = ({ selections, nextStep, prevStep, setSelectedExpert }: any
     );
 };
 
-const Step5Account = ({ handleGoogleLogin, login, nextStep, prevStep }: any) => (
-    <div className="max-md mx-auto space-y-10">
-        <div className="text-center space-y-3">
-            <h2 className="text-3xl font-extrabold text-gray-900">Save Your Progress</h2>
-            <p className="text-gray-500">Create an account to book your consultation and save your expert matches.</p>
+const Step5Account = ({ handleSignup, login, nextStep, prevStep }: any) => {
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+    });
+    const [errors, setErrors] = useState<any>({});
+    const [loading, setLoading] = useState(false);
+
+    const validateForm = () => {
+        const newErrors: any = {};
+
+        if (!formData.name || formData.name.length < 2) {
+            newErrors.name = 'Name must be at least 2 characters';
+        }
+
+        if (!formData.email || !/^\S+@\S+\.\S+$/.test(formData.email)) {
+            newErrors.email = 'Please enter a valid email';
+        }
+
+        if (!formData.password || formData.password.length < 6) {
+            newErrors.password = 'Password must be at least 6 characters';
+        }
+
+        if (formData.password !== formData.confirmPassword) {
+            newErrors.confirmPassword = 'Passwords do not match';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!validateForm()) return;
+
+        try {
+            setLoading(true);
+            setErrors({});
+            await handleSignup(formData.name, formData.email, formData.password);
+            nextStep();
+        } catch (err: any) {
+            setErrors({ submit: err.message || 'Failed to create account' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="max-w-md mx-auto space-y-10">
+            <div className="text-center space-y-3">
+                <h2 className="text-3xl font-extrabold text-gray-900">Create Your Account</h2>
+                <p className="text-gray-500">Sign up to book your session and save your expert matches.</p>
+            </div>
+
+            <Card className="p-8 space-y-6">
+                <form className="space-y-4" onSubmit={handleSubmit}>
+                    <div>
+                        <Input
+                            label="Full Name"
+                            placeholder="John Doe"
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            required
+                        />
+                        {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+                    </div>
+
+                    <div>
+                        <Input
+                            label="Email Address"
+                            placeholder="you@example.com"
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            required
+                        />
+                        {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+                    </div>
+
+                    <div>
+                        <Input
+                            label="Password"
+                            placeholder="At least 6 characters"
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            required
+                        />
+                        {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
+                    </div>
+
+                    <div>
+                        <Input
+                            label="Confirm Password"
+                            placeholder="Re-enter password"
+                            type="password"
+                            value={formData.confirmPassword}
+                            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                            required
+                        />
+                        {errors.confirmPassword && <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>}
+                    </div>
+
+                    {errors.submit && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-sm text-red-600">{errors.submit}</p>
+                        </div>
+                    )}
+
+                    <Button
+                        type="submit"
+                        className="w-full py-4 text-lg"
+                        disabled={loading}
+                    >
+                        {loading ? 'Creating Account...' : 'Create Account & Continue'}
+                    </Button>
+
+                    <p className="text-xs text-center text-gray-500">
+                        By creating an account, you agree to our Terms of Service and Privacy Policy
+                    </p>
+                </form>
+
+                <div className="flex justify-center pt-6">
+                    <button onClick={prevStep} className="flex items-center text-gray-400 font-bold hover:text-gray-600 transition-colors">
+                        <ArrowLeft size={18} className="mr-2" /> Change Expert
+                    </button>
+                </div>
+            </Card>
         </div>
-
-        <Card className="p-8 space-y-6">
-            <div className="space-y-4">
-                <Button variant="outline" className="w-full flex justify-center gap-3 py-6 rounded-2xl border-gray-200 hover:border-emerald-200 transition-all" onClick={handleGoogleLogin}>
-                    <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="" />
-                    Continue with Google
-                </Button>
-                <Button variant="outline" className="w-full py-6 rounded-2xl border-gray-200 hover:border-emerald-200">
-                    Continue with Phone
-                </Button>
-            </div>
-
-            <div className="relative py-2 text-center">
-                <div className="absolute inset-x-0 top-1/2 h-px bg-gray-100"></div>
-                <span className="relative z-10 bg-white px-4 text-xs font-bold text-gray-400 uppercase tracking-widest">or</span>
-            </div>
-
-            <form className="space-y-4" onSubmit={async (e) => {
-                e.preventDefault();
-                try {
-                    await login('guest@google.com', 'password123', true);
-                    nextStep();
-                } catch (err) {
-                    console.error(err);
-                }
-            }}>
-                <Input label="Email address" placeholder="you@example.com" type="email" required />
-                <Button type="submit" className="w-full py-4 text-lg">Create Account</Button>
-            </form>
-
-            <div className="flex justify-center pt-6">
-                <button onClick={prevStep} className="flex items-center text-gray-400 font-bold hover:text-gray-600 transition-colors">
-                    <ArrowLeft size={18} className="mr-2" /> Change Expert
-                </button>
-            </div>
-        </Card>
-    </div>
-);
+    );
+};
 
 const Step6Booking = ({ navigate, selectedExpert, userRole }: any) => {
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
@@ -480,7 +571,7 @@ const Step6Booking = ({ navigate, selectedExpert, userRole }: any) => {
 
 const Onboarding: React.FC = () => {
     const navigate = useNavigate();
-    const { login, user } = useAuth();
+    const { login, signup, user } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const currentStep = parseInt(searchParams.get('step') || '1');
     const [selections, setSelections] = useState<any>({
@@ -505,16 +596,13 @@ const Onboarding: React.FC = () => {
     const nextStep = () => setStep(Math.min(currentStep + 1, totalSteps));
     const prevStep = () => setStep(Math.max(currentStep - 1, 1));
 
-    const handleGoogleLogin = async () => {
+    const handleSignup = async (name: string, email: string, password: string) => {
         try {
-            // TODO: Implement actual Google OAuth
-            // For now, create a mock user account with role='user'
-            const mockEmail = `user${Date.now()}@serene.com`;
-            await login(mockEmail, 'password123', true);
-            nextStep();
-        } catch (e) {
-            console.error('Login error:', e);
-            alert('Google login not yet implemented. Please use email signup below.');
+            // Create account with role='user' (B2C customer)
+            await signup(name, email, password, 'user', undefined, undefined, true);
+            // noNavigate=true so we stay on onboarding flow
+        } catch (error: any) {
+            throw new Error(error.message || 'Failed to create account');
         }
     };
 
@@ -536,7 +624,7 @@ const Onboarding: React.FC = () => {
                 {currentStep === 2 && <Step2Assessment selections={selections} setSelections={setSelections} nextStep={nextStep} prevStep={prevStep} />}
                 {currentStep === 3 && <Step3Preferences selections={selections} setSelections={setSelections} nextStep={nextStep} prevStep={prevStep} />}
                 {currentStep === 4 && <Step4Results selections={selections} nextStep={nextStep} prevStep={prevStep} setSelectedExpert={setSelectedExpert} />}
-                {currentStep === 5 && <Step5Account handleGoogleLogin={handleGoogleLogin} login={login} nextStep={nextStep} prevStep={prevStep} />}
+                {currentStep === 5 && <Step5Account handleSignup={handleSignup} login={login} nextStep={nextStep} prevStep={prevStep} />}
                 {currentStep === 6 && <Step6Booking navigate={navigate} selectedExpert={selectedExpert} userRole={user?.role || 'user'} />}
             </div>
 
