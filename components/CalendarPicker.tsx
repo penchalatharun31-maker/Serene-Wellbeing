@@ -77,6 +77,10 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
 
   const isDateAvailable = (day: number): boolean => {
     const dateStr = formatDate(day);
+    // If no availability data, allow all future dates (for mock/test experts)
+    if (availableDates.length === 0) {
+      return !isDatePast(day);
+    }
     return availableDates.includes(dateStr);
   };
 
