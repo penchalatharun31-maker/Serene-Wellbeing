@@ -439,6 +439,7 @@ const Step5Account = ({ handleSignup, login, nextStep, prevStep }: any) => {
 const Step6Booking = ({ navigate, selectedExpert, userRole }: any) => {
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(new Date());
+    const { user } = useAuth(); // Get logged-in user
 
     // Get current month name and year dynamically
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -463,9 +464,11 @@ const Step6Booking = ({ navigate, selectedExpert, userRole }: any) => {
 
     const handleBookingSuccess = () => {
         setIsBookingModalOpen(false);
-        // Navigate to dashboard based on user role
-        // B2C users (onboarding flow) will have role='user'
-        const dashboardRoute = `/dashboard/${userRole || 'user'}`;
+        // Navigate to dashboard based on ACTUAL logged-in user's role
+        // Always use 'user' for B2C onboarding flow (regular customers)
+        const actualRole = user?.role || 'user';
+        console.log('[Onboarding] Navigating to dashboard:', { actualRole, user });
+        const dashboardRoute = `/dashboard/user`; // Force user dashboard for B2C customers
         navigate(dashboardRoute);
     };
 

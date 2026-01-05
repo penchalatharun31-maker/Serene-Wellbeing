@@ -40,26 +40,14 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
 
     try {
       setError(null);
-      setStep('processing');
+      const token = localStorage.getItem('token');
 
-      // Check if this is a demo/mock expert (single-digit ID)
-      const isMockExpert = /^[0-9]$/.test(expert.id);
-
-      if (isMockExpert) {
-        // Demo mode: Simulate successful booking without real payment
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate processing
-        setStep('success');
-        // Call onSuccess callback after a short delay
-        setTimeout(() => {
-          if (onSuccess) {
-            onSuccess();
-          }
-        }, 1500);
+      if (!token) {
+        setError('Please log in to book a session');
+        setStep('error');
         return;
       }
 
-      // Real payment flow for actual experts
-      const token = localStorage.getItem('token');
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
       // Calculate price based on duration
