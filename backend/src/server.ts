@@ -20,6 +20,7 @@ import authRoutes from './routes/auth.routes';
 import expertRoutes from './routes/expert.routes';
 import sessionRoutes from './routes/session.routes';
 import paymentRoutes from './routes/payment.routes';
+import payoutRoutes from './routes/payout.routes';
 import messageRoutes from './routes/message.routes';
 import adminRoutes from './routes/admin.routes';
 import analyticsRoutes from './routes/analytics.routes';
@@ -31,6 +32,7 @@ import aiCompanionRoutes from './routes/aiCompanion.routes';
 import moodRoutes from './routes/mood.routes';
 import blogRoutes from './routes/blog.routes';
 import pricingRoutes from './routes/pricing.routes';
+import companyRoutes from './routes/company.routes';
 
 // Load environment variables
 dotenv.config();
@@ -39,10 +41,15 @@ dotenv.config();
 const app: Application = express();
 const server = http.createServer(app);
 
+// CORS origins for Socket.IO (same as Express)
+const socketAllowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+  : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'];
+
 // Initialize Socket.IO
 const io = new SocketServer(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: socketAllowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -59,10 +66,30 @@ connectDB();
 
 // Security middleware
 app.use(helmet());
+
+// CORS Configuration - Production-grade multi-origin support
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+  : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'];
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn(`CORS blocked request from unauthorized origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
+    maxAge: 86400, // 24 hours - cache preflight requests
   })
 );
 
@@ -108,6 +135,7 @@ app.use(`/api/${API_VERSION}/auth`, authRoutes);
 app.use(`/api/${API_VERSION}/experts`, expertRoutes);
 app.use(`/api/${API_VERSION}/sessions`, sessionRoutes);
 app.use(`/api/${API_VERSION}/payments`, paymentRoutes);
+app.use(`/api/${API_VERSION}/payouts`, payoutRoutes);
 app.use(`/api/${API_VERSION}/messages`, messageRoutes);
 app.use(`/api/${API_VERSION}/admin`, adminRoutes);
 app.use(`/api/${API_VERSION}/analytics`, analyticsRoutes);
@@ -119,6 +147,7 @@ app.use(`/api/${API_VERSION}/ai-companion`, aiCompanionRoutes);
 app.use(`/api/${API_VERSION}/mood`, moodRoutes);
 app.use(`/api/${API_VERSION}/blog`, blogRoutes);
 app.use(`/api/${API_VERSION}/pricing`, pricingRoutes);
+app.use(`/api/${API_VERSION}/company`, companyRoutes);
 
 // Health check endpoint
 app.get(`/api/${API_VERSION}/health`, (_req, res) => {

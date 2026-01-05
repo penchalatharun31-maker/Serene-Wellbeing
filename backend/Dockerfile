@@ -1,5 +1,5 @@
 # Multi-stage build for smaller production image
-# Railway build: 2025-12-31 - EXPLICIT PATH FIX
+# Enterprise production build - 2026-01-01
 FROM node:20-alpine AS builder
 
 # Set working directory

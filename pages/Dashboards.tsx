@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge, Input, ImageUpload } from '../components/UI';
 import { UPCOMING_SESSIONS, PAST_SESSIONS, REVENUE_DATA, ENGAGEMENT_DATA } from '../data';
-import { Calendar, CreditCard, ChevronRight, Users, DollarSign, Activity, Clock, Search, CheckCircle, XCircle, Download, Mail, Plus, Trash } from 'lucide-react';
+import { Activity, BadgeCheck, BarChart2, Calendar, CheckCircle, ChevronRight, Clock, CreditCard, DollarSign, Download, LayoutDashboard, Mail, MessageCircle, Plus, PlusCircle, Search, Settings, ShieldCheck, Star, TrendingUp, Trash, Users, Video, XCircle, ArrowRight, Briefcase, FileText, Loader2 } from 'lucide-react';
+import apiClient from '../services/api';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { PaymentModal } from '../components/PaymentModal';
+import { expertService } from '../services/expert.service';
 
 // --- Shared Components ---
 
@@ -50,7 +53,9 @@ const SessionRow: React.FC<{ session: any; isPast?: boolean }> = ({ session, isP
             ) : (
                 <>
                     <Button size="sm" variant="outline" className="w-full sm:w-auto">Reschedule</Button>
-                    <Button size="sm" className="w-full sm:w-auto">Join</Button>
+                    <Link to={`/session/${session.id}/video`}>
+                        <Button size="sm" className="w-full sm:w-auto text-white bg-emerald-600 hover:bg-emerald-700">Join Video</Button>
+                    </Link>
                 </>
             )}
         </div>
@@ -60,59 +65,74 @@ const SessionRow: React.FC<{ session: any; isPast?: boolean }> = ({ session, isP
 // --- USER DASHBOARD VIEWS ---
 
 export const UserDashboard: React.FC = () => {
-  const { user } = useAuth();
+    const { user, updateUser } = useAuth();
+    const navigate = useNavigate();
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-        <div>
-            <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.name}</h1>
-            <p className="text-gray-500">Here's your personalized wellbeing overview.</p>
-        </div>
-        <Button>Book New Session</Button>
-      </div>
+    const handleTopUpSuccess = (credits: number) => {
+        if (user) {
+            updateUser({ credits: (user.credits || 0) + credits });
+        }
+    };
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="p-6 lg:col-span-2">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-gray-900">Upcoming Sessions</h3>
-                <Link to="/dashboard/user/sessions" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">View All</Link>
+    return (
+        <div className="space-y-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.name}</h1>
+                    <p className="text-gray-500">Here's your personalized wellbeing overview.</p>
+                </div>
+                <Button onClick={() => navigate('/browse')}>Book New Session</Button>
             </div>
-            <div className="space-y-4">
-                {UPCOMING_SESSIONS.map(s => <SessionRow key={s.id} session={s} />)}
-            </div>
-        </Card>
 
-        <div className="space-y-6">
-            <Card className="p-6 bg-gradient-to-br from-gray-900 to-gray-800 text-white border-none">
-                <div className="flex justify-between items-start mb-8">
-                    <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm">
-                        <CreditCard className="text-emerald-400" size={24} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="p-6 lg:col-span-2">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="font-bold text-gray-900">Upcoming Sessions</h3>
+                        <Link to="/dashboard/user/sessions" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">View All</Link>
                     </div>
-                    <Badge color="emerald">Active</Badge>
-                </div>
-                <div className="mb-2">
-                    <p className="text-gray-400 text-sm">Available Credits</p>
-                    <h3 className="text-4xl font-bold">150</h3>
-                </div>
-                <Button size="sm" className="w-full bg-emerald-500 hover:bg-emerald-400 border-none text-white mt-4">Top Up Credits</Button>
-            </Card>
+                    <div className="space-y-4">
+                        {UPCOMING_SESSIONS.map(s => <SessionRow key={s.id} session={s} />)}
+                    </div>
+                </Card>
 
-            <Card className="p-6">
-                 <h3 className="font-bold text-gray-900 mb-4">Recommended for you</h3>
-                 <div className="flex items-center gap-3 mb-3">
-                     <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=100" className="w-10 h-10 rounded-full object-cover" alt=""/>
-                     <div className="flex-1 min-w-0">
-                         <p className="text-sm font-medium text-gray-900 truncate">Stress Management</p>
-                         <p className="text-xs text-gray-500 truncate">Workshop • Dr. Anya</p>
-                     </div>
-                     <Button size="sm" variant="ghost" className="p-2"><ChevronRight size={16}/></Button>
-                 </div>
-            </Card>
+                <div className="space-y-6">
+                    <Card className="p-6 bg-gradient-to-br from-gray-900 to-gray-800 text-white border-none">
+                        <div className="flex justify-between items-start mb-8">
+                            <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm">
+                                <CreditCard className="text-emerald-400" size={24} />
+                            </div>
+                            <Badge color="emerald">Active</Badge>
+                        </div>
+                        <div className="mb-2">
+                            <p className="text-gray-400 text-sm">Available Credits</p>
+                            <h3 className="text-4xl font-bold">{user?.credits || 0}</h3>
+                        </div>
+                        <Button size="sm" className="w-full bg-emerald-500 hover:bg-emerald-400 border-none text-white mt-4" onClick={() => setIsPaymentModalOpen(true)}>Top Up Credits</Button>
+                    </Card>
+
+                    <PaymentModal
+                        isOpen={isPaymentModalOpen}
+                        onClose={() => setIsPaymentModalOpen(false)}
+                        onSuccess={handleTopUpSuccess}
+                        currency={user?.currency}
+                    />
+
+                    <Card className="p-6">
+                        <h3 className="font-bold text-gray-900 mb-4">Recommended for you</h3>
+                        <div className="flex items-center gap-3 mb-3">
+                            <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=100" className="w-10 h-10 rounded-full object-cover" alt="" />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">Stress Management</p>
+                                <p className="text-xs text-gray-500 truncate">Workshop • Dr. Anya</p>
+                            </div>
+                            <Button size="sm" variant="ghost" className="p-2"><ChevronRight size={16} /></Button>
+                        </div>
+                    </Card>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export const UserSessions: React.FC = () => {
@@ -121,15 +141,15 @@ export const UserSessions: React.FC = () => {
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-bold text-gray-900">Your Sessions</h1>
-            
+
             <div className="flex border-b border-gray-200">
-                <button 
+                <button
                     className={`pb-3 px-4 text-sm font-medium transition-colors ${tab === 'upcoming' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500 hover:text-gray-700'}`}
                     onClick={() => setTab('upcoming')}
                 >
                     Upcoming
                 </button>
-                <button 
+                <button
                     className={`pb-3 px-4 text-sm font-medium transition-colors ${tab === 'past' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500 hover:text-gray-700'}`}
                     onClick={() => setTab('past')}
                 >
@@ -159,7 +179,7 @@ export const UserSessions: React.FC = () => {
 export const UserSettings: React.FC = () => (
     <div className="space-y-6">
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
                 <Card className="p-6">
@@ -209,114 +229,407 @@ export const UserSettings: React.FC = () => (
 // --- EXPERT DASHBOARD VIEWS ---
 
 export const ExpertDashboard: React.FC = () => {
-  return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <div className="flex items-center gap-3">
-             <span className="text-sm text-gray-500 hidden sm:inline">Availability:</span>
-             <Badge color="emerald">Online</Badge>
-        </div>
-      </div>
+    const { user } = useAuth();
+    const navigate = useNavigate();
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard label="Total Revenue" value="$12,450" icon={DollarSign} trend="+12%" color="emerald" />
-        <StatCard label="Total Sessions" value="145" icon={Calendar} trend="+5%" color="blue" />
-        <StatCard label="Active Clients" value="48" icon={Users} trend="+8%" color="purple" />
-        <StatCard label="Avg. Rating" value="4.9" icon={Activity} color="orange" />
-      </div>
+    // Check if expert is approved, redirect to under-review if pending
+    useEffect(() => {
+        const checkApprovalStatus = async () => {
+            if (!user?._id) return;
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-         <Card className="lg:col-span-2 p-6">
-            <h3 className="font-bold text-gray-900 mb-6">Revenue Overview</h3>
-            <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={REVENUE_DATA}>
-                        <defs>
-                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10B981" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} prefix="$" />
-                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                        <Area type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </div>
-         </Card>
+            try {
+                const response = await apiClient.get(`/experts/user/${user._id}`);
+                const expert = response.data.data;
 
-         <Card className="p-6">
-             <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-gray-900">Upcoming Bookings</h3>
-                <Button size="sm" variant="ghost">View All</Button>
-             </div>
-             <div className="space-y-4">
-                 {[1, 2, 3].map((i) => (
-                     <div key={i} className="flex gap-4 pb-4 border-b border-gray-50 last:border-0 last:pb-0">
-                         <div className="text-center min-w-[3rem]">
-                             <p className="text-xs text-gray-500 font-medium">10:00</p>
-                             <p className="text-xs text-gray-400">AM</p>
-                         </div>
-                         <div className="border-l-2 border-emerald-500 pl-4">
-                             <p className="text-sm font-bold text-gray-900">Sarah Johnson</p>
-                             <p className="text-xs text-gray-500">Mindfulness Session</p>
-                         </div>
-                     </div>
-                 ))}
-             </div>
-         </Card>
-      </div>
-    </div>
-  );
-};
+                // Redirect to under-review if not approved
+                if (expert.approvalStatus !== 'approved' || !expert.isApproved) {
+                    navigate('/under-review');
+                }
+            } catch (err: any) {
+                // If expert profile doesn't exist, redirect to onboarding
+                if (err.status === 404) {
+                    navigate('/expert-onboarding');
+                }
+            }
+        };
 
-export const ExpertBookings: React.FC = () => {
-    const bookings = [
-        { id: 1, name: "Alice Freeman", type: "Initial Consultation", date: "Today, 2:00 PM", status: "pending" },
-        { id: 2, name: "Bob Smith", type: "Mindfulness Session", date: "Tomorrow, 10:00 AM", status: "confirmed" },
-        { id: 3, name: "Charlie Davis", type: "Therapy Session", date: "Jul 15, 4:00 PM", status: "confirmed" }
-    ];
+        checkApprovalStatus();
+    }, [user, navigate]);
+
+    // Mock expert data for completeness calculation
+    const mockExpert = {
+        profilePhoto: user?.avatar,
+        qualifications: ['MSc Psychology'],
+        specializations: ['Mindfulness', 'Stress Management'],
+        bio: 'Experienced mindfulness coach helping professionals find peace in their busy lives.',
+        sessionRate: 1500,
+        calLink: 'https://cal.com/expert',
+        // Missing bank details, video intro, etc. to show partial completeness
+    };
+
+    const { percentage, message } = expertService.calculateProfileCompleteness(mockExpert);
 
     return (
-        <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="p-6 lg:col-span-2">
-                    <h3 className="font-bold text-gray-900 mb-4">All Bookings</h3>
+        <div className="space-y-8">
+            {/* Profile Completeness Alert */}
+            <Card className="p-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100 overflow-hidden relative">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <BadgeCheck size={120} className="text-emerald-600" />
+                </div>
+                <div className="relative z-10 flex flex-col md:flex-row gap-6 items-center">
+                    <div className="flex-1 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-xl font-bold text-gray-900">Profile Completeness</h2>
+                            <Badge color={percentage > 80 ? 'emerald' : 'orange'}>{percentage}% Complete</Badge>
+                        </div>
+                        <p className="text-gray-600 font-medium">{message}</p>
+                        <div className="w-full bg-white/50 h-3 rounded-full overflow-hidden border border-emerald-100/50">
+                            <div
+                                className="bg-emerald-500 h-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                                style={{ width: `${percentage}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                    <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200">
+                        Complete Profile <ArrowRight size={18} className="ml-2" />
+                    </Button>
+                </div>
+            </Card>
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+                <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500 hidden sm:inline">Availability:</span>
+                    <Badge color="emerald">Online</Badge>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard label="Total Revenue" value="$12,450" icon={DollarSign} trend="+12%" color="emerald" />
+                <StatCard label="Total Sessions" value="145" icon={Calendar} trend="+5%" color="blue" />
+                <StatCard label="Active Clients" value="48" icon={Users} trend="+8%" color="purple" />
+                <StatCard label="Avg. Rating" value="4.9" icon={Activity} color="orange" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <Card className="lg:col-span-2 p-6">
+                    <h3 className="font-bold text-gray-900 mb-6">Revenue Overview</h3>
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={REVENUE_DATA}>
+                                <defs>
+                                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.1} />
+                                        <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} prefix="$" />
+                                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                <Area type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </Card>
+
+                <Card className="p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="font-bold text-gray-900">Upcoming Bookings</h3>
+                        <Button size="sm" variant="ghost">View All</Button>
+                    </div>
                     <div className="space-y-4">
-                        {bookings.map(booking => (
-                            <div key={booking.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl">
-                                <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold">
-                                        {booking.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-gray-900">{booking.name}</h4>
-                                        <p className="text-sm text-gray-500">{booking.type} • {booking.date}</p>
-                                    </div>
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="flex gap-4 pb-4 border-b border-gray-50 last:border-0 last:pb-0">
+                                <div className="text-center min-w-[3rem]">
+                                    <p className="text-xs text-gray-500 font-medium">10:00</p>
+                                    <p className="text-xs text-gray-400">AM</p>
                                 </div>
-                                {booking.status === 'pending' ? (
-                                    <div className="flex gap-2">
-                                        <Button size="sm" variant="secondary"><CheckCircle size={16} className="mr-1" /> Accept</Button>
-                                        <Button size="sm" variant="ghost"><XCircle size={16} className="mr-1" /> Decline</Button>
-                                    </div>
-                                ) : (
-                                    <Badge color="emerald">Confirmed</Badge>
-                                )}
+                                <div className="border-l-2 border-emerald-500 pl-4">
+                                    <p className="text-sm font-bold text-gray-900">Sarah Johnson</p>
+                                    <p className="text-xs text-gray-500">Mindfulness Session</p>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </Card>
-                
+
+                {/* B2B / Corporate Differentiators Section */}
+                <Card className="p-6 border-indigo-100 bg-indigo-50/30">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                            <Briefcase size={20} />
+                        </div>
+                        <h3 className="font-bold text-gray-900">Corporate Tier</h3>
+                    </div>
+
+                    <div className="space-y-4">
+                        <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider">Required for B2B Bookings</p>
+
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-indigo-50 shadow-sm">
+                                <div className="flex items-center gap-3">
+                                    <ShieldCheck size={18} className="text-emerald-500" />
+                                    <span className="text-sm font-medium">Background Verification</span>
+                                </div>
+                                <Badge color="emerald">Verified</Badge>
+                            </div>
+
+                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-indigo-50 shadow-sm">
+                                <div className="flex items-center gap-3">
+                                    <FileText size={18} className="text-gray-400" />
+                                    <span className="text-sm font-medium">Professional Insurance</span>
+                                </div>
+                                <Button size="xs" variant="outline" className="text-[10px] h-7 px-2">Upload Doc</Button>
+                            </div>
+
+                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-indigo-50 shadow-sm opacity-60">
+                                <div className="flex items-center gap-3">
+                                    <DollarSign size={18} className="text-gray-400" />
+                                    <span className="text-sm font-medium">GST Registration</span>
+                                </div>
+                                <span className="text-[10px] text-gray-400 italic">Optional</span>
+                            </div>
+                        </div>
+
+                        <div className="pt-4 mt-2 border-t border-indigo-100/50">
+                            <Link to="/expert-b2b-setup" className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-2 group">
+                                Manage Corporate Rate Card
+                                <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                            </Link>
+                        </div>
+                    </div>
+                </Card>
+            </div>
+        </div>
+    );
+};
+
+export const ExpertBookings: React.FC = () => {
+    const { user } = useAuth();
+    const [bookings, setBookings] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [processingId, setProcessingId] = useState<string | null>(null);
+    const [rejectModalOpen, setRejectModalOpen] = useState(false);
+    const [selectedBooking, setSelectedBooking] = useState<any>(null);
+    const [rejectReason, setRejectReason] = useState('');
+
+    useEffect(() => {
+        if (user) {
+            fetchBookings();
+        }
+    }, [user]);
+
+    const fetchBookings = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await apiClient.get('/sessions/expert/all');
+            setBookings(response.data.data || []);
+        } catch (err: any) {
+            console.error('Error fetching bookings:', err);
+            setError(err.message || 'Failed to load bookings');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAccept = async (bookingId: string) => {
+        try {
+            setProcessingId(bookingId);
+            await apiClient.post(`/sessions/${bookingId}/accept`);
+            await fetchBookings();
+        } catch (err: any) {
+            console.error('Error accepting booking:', err);
+            alert(err.message || 'Failed to accept booking. Please try again.');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleRejectClick = (booking: any) => {
+        setSelectedBooking(booking);
+        setRejectModalOpen(true);
+    };
+
+    const handleRejectConfirm = async () => {
+        if (!selectedBooking) return;
+
+        try {
+            setProcessingId(selectedBooking._id);
+            await apiClient.post(`/sessions/${selectedBooking._id}/reject`, {
+                reason: rejectReason || 'No specific reason provided',
+            });
+            setRejectModalOpen(false);
+            setRejectReason('');
+            setSelectedBooking(null);
+            await fetchBookings();
+        } catch (err: any) {
+            console.error('Error rejecting booking:', err);
+            alert(err.message || 'Failed to reject booking. Please try again.');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const formatDate = (dateString: string, timeString: string) => {
+        const date = new Date(dateString);
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        let dateLabel = '';
+        if (date.toDateString() === today.toDateString()) {
+            dateLabel = 'Today';
+        } else if (date.toDateString() === tomorrow.toDateString()) {
+            dateLabel = 'Tomorrow';
+        } else {
+            dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        const [hours, minutes] = timeString.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour % 12 || 12;
+
+        return `${dateLabel}, ${displayHour}:${minutes} ${ampm}`;
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
+                {!loading && (
+                    <button
+                        onClick={fetchBookings}
+                        className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                    >
+                        Refresh
+                    </button>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="p-6 lg:col-span-2">
+                    <h3 className="font-bold text-gray-900 mb-4">All Bookings</h3>
+                    {loading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="animate-spin text-emerald-600" size={32} />
+                            <span className="ml-3 text-gray-600">Loading bookings...</span>
+                        </div>
+                    ) : error ? (
+                        <div className="text-center py-12">
+                            <p className="text-red-600 mb-4">{error}</p>
+                            <Button onClick={fetchBookings} variant="outline">
+                                Try Again
+                            </Button>
+                        </div>
+                    ) : bookings.length === 0 ? (
+                        <div className="text-center py-12">
+                            <p className="text-gray-500">No bookings yet</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {bookings.map(booking => (
+                                <div key={booking._id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold">
+                                            {booking.userId?.name?.charAt(0) || 'U'}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-900">{booking.userId?.name || 'Unknown User'}</h4>
+                                            <p className="text-sm text-gray-500">
+                                                {formatDate(booking.scheduledDate, booking.scheduledTime)}
+                                                {booking.notes && ` • ${booking.notes.substring(0, 30)}${booking.notes.length > 30 ? '...' : ''}`}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {booking.status === 'pending' ? (
+                                        <div className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                onClick={() => handleAccept(booking._id)}
+                                                disabled={processingId === booking._id}
+                                            >
+                                                {processingId === booking._id ? (
+                                                    <Loader2 className="animate-spin mr-1" size={16} />
+                                                ) : (
+                                                    <CheckCircle size={16} className="mr-1" />
+                                                )}
+                                                Accept
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => handleRejectClick(booking)}
+                                                disabled={processingId === booking._id}
+                                            >
+                                                <XCircle size={16} className="mr-1" /> Decline
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <Badge color={booking.status === 'confirmed' ? 'emerald' : 'gray'}>
+                                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                                        </Badge>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </Card>
+
+                {/* Reject Modal */}
+                {rejectModalOpen && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <Card className="max-w-md w-full p-6">
+                            <h3 className="text-lg font-bold text-gray-900 mb-4">Decline Booking Request</h3>
+                            <p className="text-sm text-gray-600 mb-4">
+                                Please provide a reason for declining this booking. This will be shared with the user.
+                            </p>
+                            <textarea
+                                value={rejectReason}
+                                onChange={(e) => setRejectReason(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4"
+                                rows={4}
+                                placeholder="e.g., I'm not available at this time, please choose another slot"
+                            />
+                            <div className="flex gap-3 justify-end">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setRejectModalOpen(false);
+                                        setRejectReason('');
+                                        setSelectedBooking(null);
+                                    }}
+                                    disabled={processingId === selectedBooking?._id}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={handleRejectConfirm}
+                                    disabled={processingId === selectedBooking?._id}
+                                    className="bg-red-600 hover:bg-red-700"
+                                >
+                                    {processingId === selectedBooking?._id ? (
+                                        <>
+                                            <Loader2 className="animate-spin mr-2" size={16} />
+                                            Declining...
+                                        </>
+                                    ) : (
+                                        'Decline Booking'
+                                    )}
+                                </Button>
+                            </div>
+                        </Card>
+                    </div>
+                )}
+
                 <div className="space-y-6">
                     <Card className="p-6">
                         <h3 className="font-bold text-gray-900 mb-4">Quick Actions</h3>
                         <div className="space-y-3">
-                            <Button variant="outline" className="w-full justify-start"><Calendar size={16} className="mr-2"/> Sync Calendar</Button>
-                            <Button variant="outline" className="w-full justify-start"><Clock size={16} className="mr-2"/> Update Availability</Button>
+                            <Button variant="outline" className="w-full justify-start"><Calendar size={16} className="mr-2" /> Sync Calendar</Button>
+                            <Button variant="outline" className="w-full justify-start"><Clock size={16} className="mr-2" /> Update Availability</Button>
                         </div>
                     </Card>
                 </div>
@@ -326,64 +639,270 @@ export const ExpertBookings: React.FC = () => {
 };
 
 export const ExpertAvailability: React.FC = () => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const hours = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
-    const [selectedSlots, setSelectedSlots] = useState<string[]>(['Mon-9:00 AM', 'Mon-10:00 AM', 'Tue-10:00 AM']);
+    const { user } = useAuth();
+    const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const dayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-    const toggleSlot = (day: string, hour: string) => {
-        const key = `${day}-${hour}`;
-        if (selectedSlots.includes(key)) {
-            setSelectedSlots(selectedSlots.filter(s => s !== key));
-        } else {
-            setSelectedSlots([...selectedSlots, key]);
+    const [availability, setAvailability] = useState<Record<string, Array<{ start: string; end: string }>>>({
+        monday: [],
+        tuesday: [],
+        wednesday: [],
+        thursday: [],
+        friday: [],
+        saturday: [],
+        sunday: [],
+    });
+    const [timezone, setTimezone] = useState('America/New_York');
+    const [slotDuration, setSlotDuration] = useState(60);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (user?._id) {
+            fetchAvailability();
+        }
+    }, [user]);
+
+    const fetchAvailability = async () => {
+        if (!user?._id) {
+            setError('User not authenticated');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            setError(null);
+            // Fetch expert profile to get current availability
+            const response = await apiClient.get(`/experts/user/${user._id}`);
+            const expert = response.data.data;
+
+            if (expert.availability) {
+                setAvailability(expert.availability);
+            }
+            if (expert.timezone) {
+                setTimezone(expert.timezone);
+            }
+            if (expert.slotDuration) {
+                setSlotDuration(expert.slotDuration);
+            }
+        } catch (err: any) {
+            console.error('Error fetching availability:', err);
+            setError(err.message || 'Failed to load availability');
+        } finally {
+            setLoading(false);
         }
     };
+
+    const handleSaveChanges = async () => {
+        try {
+            setSaving(true);
+            setError(null);
+            setSuccessMessage(null);
+
+            await apiClient.put('/experts/my-availability', {
+                availability,
+                timezone,
+                slotDuration,
+            });
+
+            setSuccessMessage('Availability updated successfully!');
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (err: any) {
+            console.error('Error saving availability:', err);
+            setError(err.message || 'Failed to save availability');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const addTimeSlot = (day: string) => {
+        setAvailability(prev => ({
+            ...prev,
+            [day]: [...prev[day], { start: '09:00', end: '17:00' }],
+        }));
+    };
+
+    const removeTimeSlot = (day: string, index: number) => {
+        setAvailability(prev => ({
+            ...prev,
+            [day]: prev[day].filter((_, i) => i !== index),
+        }));
+    };
+
+    const updateTimeSlot = (day: string, index: number, field: 'start' | 'end', value: string) => {
+        setAvailability(prev => ({
+            ...prev,
+            [day]: prev[day].map((slot, i) =>
+                i === index ? { ...slot, [field]: value } : slot
+            ),
+        }));
+    };
+
+    const copyToAllDays = (day: string) => {
+        const slots = availability[day];
+        const newAvailability = { ...availability };
+        dayNames.forEach(d => {
+            newAvailability[d] = JSON.parse(JSON.stringify(slots));
+        });
+        setAvailability(newAvailability);
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="animate-spin text-emerald-600" size={32} />
+                <span className="ml-3 text-gray-600">Loading availability settings...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-900">Availability Management</h1>
                 <div className="flex gap-2">
-                    <Button variant="outline">Sync Google Calendar</Button>
-                    <Button>Save Changes</Button>
+                    <Button
+                        onClick={handleSaveChanges}
+                        disabled={saving}
+                    >
+                        {saving ? (
+                            <>
+                                <Loader2 className="animate-spin mr-2" size={16} />
+                                Saving...
+                            </>
+                        ) : (
+                            'Save Changes'
+                        )}
+                    </Button>
                 </div>
             </div>
 
+            {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                    {error}
+                </div>
+            )}
+
+            {successMessage && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg">
+                    {successMessage}
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="p-6">
+                    <h3 className="font-bold text-gray-900 mb-4">Settings</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Timezone
+                            </label>
+                            <select
+                                value={timezone}
+                                onChange={(e) => setTimezone(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            >
+                                <option value="America/New_York">Eastern Time (ET)</option>
+                                <option value="America/Chicago">Central Time (CT)</option>
+                                <option value="America/Denver">Mountain Time (MT)</option>
+                                <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                                <option value="Asia/Kolkata">India Standard Time (IST)</option>
+                                <option value="Europe/London">Greenwich Mean Time (GMT)</option>
+                                <option value="Europe/Paris">Central European Time (CET)</option>
+                                <option value="Asia/Tokyo">Japan Standard Time (JST)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Session Duration (minutes)
+                            </label>
+                            <select
+                                value={slotDuration}
+                                onChange={(e) => setSlotDuration(Number(e.target.value))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            >
+                                <option value={15}>15 minutes</option>
+                                <option value={30}>30 minutes</option>
+                                <option value={60}>60 minutes</option>
+                            </select>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card className="p-6">
+                    <h3 className="font-bold text-gray-900 mb-4">Quick Tips</h3>
+                    <ul className="space-y-2 text-sm text-gray-600">
+                        <li>• Set your weekly recurring availability</li>
+                        <li>• Use 24-hour format (HH:MM)</li>
+                        <li>• You can add multiple time slots per day</li>
+                        <li>• Click "Copy to all days" to replicate a schedule</li>
+                    </ul>
+                </Card>
+            </div>
+
             <Card className="p-6">
-                <p className="text-sm text-gray-500 mb-6">Click on the slots below to mark your availability for recurring weekly sessions.</p>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-center text-sm">
-                        <thead>
-                            <tr>
-                                <th className="p-2"></th>
-                                {days.map(day => (
-                                    <th key={day} className="p-2 font-semibold text-gray-700">{day}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {hours.map(hour => (
-                                <tr key={hour}>
-                                    <td className="p-2 font-medium text-gray-500 text-right pr-4">{hour}</td>
-                                    {days.map(day => {
-                                        const isSelected = selectedSlots.includes(`${day}-${hour}`);
-                                        return (
-                                            <td key={`${day}-${hour}`} className="p-1">
-                                                <div 
-                                                    onClick={() => toggleSlot(day, hour)}
-                                                    className={`h-10 rounded-md cursor-pointer transition-all border ${
-                                                        isSelected 
-                                                        ? 'bg-emerald-50 border-emerald-600 shadow-sm' 
-                                                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                                                    }`}
-                                                ></div>
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <h3 className="font-bold text-gray-900 mb-6">Weekly Schedule</h3>
+                <div className="space-y-4">
+                    {dayNames.map((day, idx) => (
+                        <div key={day} className="border-b border-gray-100 pb-4 last:border-0">
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-medium text-gray-900">{dayLabels[idx]}</h4>
+                                <div className="flex gap-2">
+                                    {availability[day].length > 0 && (
+                                        <button
+                                            onClick={() => copyToAllDays(day)}
+                                            className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                                        >
+                                            Copy to all days
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => addTimeSlot(day)}
+                                        className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center"
+                                    >
+                                        <Plus size={14} className="mr-1" />
+                                        Add time slot
+                                    </button>
+                                </div>
+                            </div>
+
+                            {availability[day].length === 0 ? (
+                                <p className="text-sm text-gray-400 italic">No availability set</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {availability[day].map((slot, index) => (
+                                        <div key={index} className="flex items-center gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="time"
+                                                    value={slot.start}
+                                                    onChange={(e) => updateTimeSlot(day, index, 'start', e.target.value)}
+                                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                />
+                                                <span className="text-gray-400">to</span>
+                                                <input
+                                                    type="time"
+                                                    value={slot.end}
+                                                    onChange={(e) => updateTimeSlot(day, index, 'end', e.target.value)}
+                                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={() => removeTimeSlot(day, index)}
+                                                className="text-red-600 hover:text-red-700 p-1"
+                                                title="Remove time slot"
+                                            >
+                                                <Trash size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </div>
             </Card>
         </div>
@@ -397,7 +916,7 @@ export const ExpertCreateGroupSession: React.FC = () => {
             <Card className="p-8">
                 <form className="space-y-6">
                     <Input label="Session Title" placeholder="e.g., Morning Mindfulness Workshop" />
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Input label="Date" type="date" />
                         <Input label="Time" type="time" />
@@ -474,43 +993,291 @@ export const ExpertClients: React.FC = () => {
     );
 };
 
-export const ExpertEarnings: React.FC = () => (
-    <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Earnings</h1>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <StatCard label="Available for Payout" value="$1,250.00" icon={DollarSign} color="emerald" />
-            <StatCard label="Pending Clearance" value="$450.00" icon={Clock} color="orange" />
-            <Card className="p-6 flex flex-col justify-center items-center text-center">
-                <Button className="w-full mb-2">Withdraw Funds</Button>
-                <p className="text-xs text-gray-500">Payouts processed every Friday</p>
-            </Card>
-        </div>
+export const ExpertEarnings: React.FC = () => {
+    const [earnings, setEarnings] = useState<any>(null);
+    const [payouts, setPayouts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [payoutModalOpen, setPayoutModalOpen] = useState(false);
+    const [payoutAmount, setPayoutAmount] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
+    const [upiId, setUpiId] = useState('');
+    const [bankDetails, setBankDetails] = useState({ accountHolderName: '', accountNumber: '', ifscCode: '' });
+    const [requesting, setRequesting] = useState(false);
 
-        <Card className="p-6">
-            <h3 className="font-bold text-gray-900 mb-6">Transaction History</h3>
-            <div className="space-y-4">
-                {[
-                    { id: 1, desc: "Session with Sarah J.", date: "Jul 12", amount: "+$120.00", status: "Cleared" },
-                    { id: 2, desc: "Session with Mike B.", date: "Jul 11", amount: "+$95.00", status: "Cleared" },
-                    { id: 3, desc: "Payout to Bank Account", date: "Jul 10", amount: "-$2,400.00", status: "Completed" },
-                    { id: 4, desc: "Session with Emily D.", date: "Jul 09", amount: "+$120.00", status: "Pending" },
-                ].map(tx => (
-                    <div key={tx.id} className="flex items-center justify-between p-4 border-b border-gray-50 last:border-0">
-                        <div>
-                            <p className="font-bold text-gray-900">{tx.desc}</p>
-                            <p className="text-xs text-gray-500">{tx.date}</p>
-                        </div>
-                        <div className="text-right">
-                            <p className={`font-bold ${tx.amount.startsWith('+') ? 'text-emerald-600' : 'text-gray-900'}`}>{tx.amount}</p>
-                            <span className={`text-xs ${tx.status === 'Pending' ? 'text-orange-500' : 'text-gray-400'}`}>{tx.status}</span>
-                        </div>
-                    </div>
-                ))}
+    useEffect(() => {
+        fetchEarnings();
+        fetchPayouts();
+    }, []);
+
+    const fetchEarnings = async () => {
+        try {
+            setLoading(true);
+            const response = await apiClient.get('/payouts/earnings');
+            setEarnings(response.data.data);
+        } catch (err: any) {
+            console.error('Error fetching earnings:', err);
+            setError(err.message || 'Failed to load earnings');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchPayouts = async () => {
+        try {
+            const response = await apiClient.get('/payouts/my-payouts');
+            setPayouts(response.data.data || []);
+        } catch (err: any) {
+            console.error('Error fetching payouts:', err);
+        }
+    };
+
+    const handleRequestPayout = async () => {
+        try {
+            setRequesting(true);
+            const amount = parseFloat(payoutAmount);
+
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+
+            const paymentDetails: any = {};
+            if (paymentMethod === 'upi') {
+                if (!upiId) {
+                    alert('Please enter UPI ID');
+                    return;
+                }
+                paymentDetails.upiId = upiId;
+            } else if (paymentMethod === 'bank_transfer') {
+                if (!bankDetails.accountHolderName || !bankDetails.accountNumber || !bankDetails.ifscCode) {
+                    alert('Please fill all bank details');
+                    return;
+                }
+                paymentDetails.accountHolderName = bankDetails.accountHolderName;
+                paymentDetails.accountNumber = bankDetails.accountNumber;
+                paymentDetails.ifscCode = bankDetails.ifscCode;
+            }
+
+            await apiClient.post('/payouts', {
+                amount,
+                paymentMethod,
+                paymentDetails,
+            });
+
+            setPayoutModalOpen(false);
+            setPayoutAmount('');
+            setUpiId('');
+            setBankDetails({ accountHolderName: '', accountNumber: '', ifscCode: '' });
+            await fetchEarnings();
+            await fetchPayouts();
+            alert('Payout request submitted successfully!');
+        } catch (err: any) {
+            console.error('Error requesting payout:', err);
+            alert(err.message || 'Failed to request payout');
+        } finally {
+            setRequesting(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="animate-spin text-emerald-600" size={32} />
+                <span className="ml-3 text-gray-600">Loading earnings...</span>
             </div>
-        </Card>
-    </div>
-);
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="text-center py-12">
+                <p className="text-red-600 mb-4">{error}</p>
+                <Button onClick={fetchEarnings} variant="outline">Try Again</Button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Earnings</h1>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <StatCard
+                    label="Available for Payout"
+                    value={`${earnings?.currency || 'INR'} ${earnings?.availableBalance?.toFixed(2) || '0.00'}`}
+                    icon={DollarSign}
+                    color="emerald"
+                />
+                <StatCard
+                    label="Pending Payouts"
+                    value={`${earnings?.currency || 'INR'} ${earnings?.pendingPayouts?.toFixed(2) || '0.00'}`}
+                    icon={Clock}
+                    color="orange"
+                />
+                <Card className="p-6 flex flex-col justify-center items-center text-center">
+                    <Button
+                        className="w-full mb-2"
+                        onClick={() => setPayoutModalOpen(true)}
+                        disabled={(earnings?.availableBalance || 0) <= 0}
+                    >
+                        Request Payout
+                    </Button>
+                    <p className="text-xs text-gray-500">Payouts processed within 3-5 business days</p>
+                </Card>
+            </div>
+
+            <Card className="p-6">
+                <h3 className="font-bold text-gray-900 mb-6">Payout History</h3>
+                {payouts.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No payout requests yet</p>
+                ) : (
+                    <div className="space-y-4">
+                        {payouts.map(payout => (
+                            <div key={payout._id} className="flex items-center justify-between p-4 border-b border-gray-50 last:border-0">
+                                <div>
+                                    <p className="font-bold text-gray-900">
+                                        Payout Request ({payout.paymentMethod.replace('_', ' ')})
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        {new Date(payout.requestedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-bold text-gray-900">-{payout.currency} {payout.amount.toFixed(2)}</p>
+                                    <span className={`text-xs ${
+                                        payout.status === 'pending' ? 'text-orange-500' :
+                                        payout.status === 'approved' ? 'text-blue-500' :
+                                        payout.status === 'completed' ? 'text-emerald-500' :
+                                        'text-red-500'
+                                    }`}>
+                                        {payout.status.charAt(0).toUpperCase() + payout.status.slice(1)}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Card>
+
+            {/* Payout Request Modal */}
+            {payoutModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <Card className="max-w-md w-full p-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Request Payout</h3>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Amount ({earnings?.currency || 'INR'})
+                                </label>
+                                <input
+                                    type="number"
+                                    value={payoutAmount}
+                                    onChange={(e) => setPayoutAmount(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    placeholder="0.00"
+                                    max={earnings?.availableBalance || 0}
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Available: {earnings?.currency || 'INR'} {earnings?.availableBalance?.toFixed(2) || '0.00'}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Payment Method
+                                </label>
+                                <select
+                                    value={paymentMethod}
+                                    onChange={(e) => setPaymentMethod(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                >
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="upi">UPI</option>
+                                </select>
+                            </div>
+
+                            {paymentMethod === 'upi' ? (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        UPI ID
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={upiId}
+                                        onChange={(e) => setUpiId(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        placeholder="yourname@upi"
+                                    />
+                                </div>
+                            ) : (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Account Holder Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={bankDetails.accountHolderName}
+                                            onChange={(e) => setBankDetails({ ...bankDetails, accountHolderName: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Account Number
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={bankDetails.accountNumber}
+                                            onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            IFSC Code
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={bankDetails.ifscCode}
+                                            onChange={(e) => setBankDetails({ ...bankDetails, ifscCode: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 justify-end mt-6">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setPayoutModalOpen(false)}
+                                disabled={requesting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleRequestPayout}
+                                disabled={requesting}
+                            >
+                                {requesting ? (
+                                    <>
+                                        <Loader2 className="animate-spin mr-2" size={16} />
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    'Submit Request'
+                                )}
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const ExpertSettings: React.FC = () => (
     <div className="space-y-6">
@@ -551,6 +1318,8 @@ export const ExpertSettings: React.FC = () => (
 );
 
 // --- COMPANY DASHBOARD VIEWS ---
+import { InviteEmployeeModal } from '../components/InviteEmployeeModal';
+import { AddAdminModal } from '../components/AddAdminModal';
 
 export const CompanyDashboard: React.FC = () => {
     return (
@@ -561,11 +1330,11 @@ export const CompanyDashboard: React.FC = () => {
                     <p className="text-gray-500 mt-2">Manage your company's credits and engagement.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
-                     <div className="text-center sm:text-right">
-                         <p className="text-sm text-gray-500">Corporate Balance</p>
-                         <p className="text-2xl font-bold text-emerald-600">5,000 Credits</p>
-                     </div>
-                     <Button size="lg">Buy Credits</Button>
+                    <div className="text-center sm:text-right">
+                        <p className="text-sm text-gray-500">Corporate Balance</p>
+                        <p className="text-2xl font-bold text-emerald-600">5,000 Credits</p>
+                    </div>
+                    <Button size="lg" onClick={() => window.location.hash = '#/dashboard/company/billing'}>Buy Credits</Button>
                 </div>
             </div>
 
@@ -578,10 +1347,10 @@ export const CompanyDashboard: React.FC = () => {
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={ENGAGEMENT_DATA}>
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
-                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
                                 <Tooltip contentStyle={{ borderRadius: '8px' }} />
-                                <Line type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2} dot={{r: 4, fill: '#10B981'}} />
+                                <Line type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2} dot={{ r: 4, fill: '#10B981' }} />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
@@ -602,9 +1371,9 @@ export const CompanyDashboard: React.FC = () => {
                                     <span className="text-gray-500">{dept.val}% Used</span>
                                 </div>
                                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                                    <div 
-                                        className="h-full bg-emerald-500 rounded-full" 
-                                        style={{ width: `${dept.val}%` }} 
+                                    <div
+                                        className="h-full bg-emerald-500 rounded-full"
+                                        style={{ width: `${dept.val}%` }}
                                     />
                                 </div>
                             </div>
@@ -617,17 +1386,22 @@ export const CompanyDashboard: React.FC = () => {
 };
 
 export const CompanyEmployees: React.FC = () => {
-    const employees = [
+    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+    const [employees, setEmployees] = useState([
         { id: 1, name: "Alice Freeman", email: "alice@acme.com", department: "Engineering", status: "Active" },
         { id: 2, name: "Bob Smith", email: "bob@acme.com", department: "Sales", status: "Active" },
         { id: 3, name: "Charlie Davis", email: "charlie@acme.com", department: "Marketing", status: "Invited" },
-    ];
+    ]);
+
+    const handleInvite = (email: string, name: string, department: string) => {
+        setEmployees([...employees, { id: Date.now(), name, email, department, status: 'Invited' }]);
+    };
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
-                <Button><Plus size={18} className="mr-2" /> Invite Employee</Button>
+                <Button onClick={() => setIsInviteModalOpen(true)}><Plus size={18} className="mr-2" /> Invite Employee</Button>
             </div>
 
             <Card>
@@ -652,7 +1426,7 @@ export const CompanyEmployees: React.FC = () => {
                                         <Badge color={emp.status === 'Active' ? 'emerald' : 'gray'}>{emp.status}</Badge>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <Button size="sm" variant="ghost">Manage</Button>
+                                        <Button size="sm" variant="ghost" onClick={() => alert(`Manage ${emp.name}`)}>Manage</Button>
                                     </td>
                                 </tr>
                             ))}
@@ -660,87 +1434,122 @@ export const CompanyEmployees: React.FC = () => {
                     </table>
                 </div>
             </Card>
+
+            <InviteEmployeeModal
+                isOpen={isInviteModalOpen}
+                onClose={() => setIsInviteModalOpen(false)}
+                onInvite={handleInvite}
+            />
         </div>
     );
 };
 
-export const CompanyCredits: React.FC = () => (
-    <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Credits & Billing</h1>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-                { credits: 1000, price: 900, discount: "10%" },
-                { credits: 5000, price: 4000, discount: "20%" },
-                { credits: 10000, price: 7500, discount: "25%" },
-            ].map((pkg, idx) => (
-                <Card key={idx} className="p-6 text-center border hover:border-emerald-300 transition-colors cursor-pointer">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{pkg.credits} Credits</h3>
-                    <p className="text-3xl font-bold text-emerald-600 mb-2">${pkg.price}</p>
-                    <Badge color="blue">Save {pkg.discount}</Badge>
-                    <Button className="w-full mt-6">Purchase</Button>
-                </Card>
-            ))}
-        </div>
+export const CompanyCredits: React.FC = () => {
+    // Reusing user payment modal for simplicity, but in real app this would be corporate billing
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
-        <Card className="p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-gray-900">Purchase History</h3>
-                <Button size="sm" variant="outline"><Download size={16} className="mr-2" /> Export Invoice</Button>
-            </div>
-            <div className="space-y-4">
-                {[1, 2].map(i => (
-                    <div key={i} className="flex justify-between items-center py-3 border-b border-gray-50 last:border-0">
-                        <div>
-                            <p className="font-medium text-gray-900">5000 Credits Pack</p>
-                            <p className="text-xs text-gray-500">Invoice #INV-2024-00{i} • Oct 20, 2024</p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <div className="text-right">
-                                <p className="font-bold text-gray-900">$4,000.00</p>
-                                <span className="text-xs text-emerald-600">Paid</span>
-                            </div>
-                            <Link to={`/invoice/${i}`}>
-                                <Button size="sm" variant="ghost">View</Button>
-                            </Link>
-                        </div>
-                    </div>
+    return (
+        <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Credits & Billing</h1>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                    { credits: 1000, price: 900, discount: "10%" },
+                    { credits: 5000, price: 4000, discount: "20%" },
+                    { credits: 10000, price: 7500, discount: "25%" },
+                ].map((pkg, idx) => (
+                    <Card key={idx} className="p-6 text-center border hover:border-emerald-300 transition-colors cursor-pointer">
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">{pkg.credits} Credits</h3>
+                        <p className="text-3xl font-bold text-emerald-600 mb-2">${pkg.price}</p>
+                        <Badge color="blue">Save {pkg.discount}</Badge>
+                        <Button className="w-full mt-6" onClick={() => setIsPaymentModalOpen(true)}>Purchase</Button>
+                    </Card>
                 ))}
             </div>
-        </Card>
-    </div>
-);
 
-export const CompanySettings: React.FC = () => (
-    <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Company Settings</h1>
-        <Card className="p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Organization Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input label="Company Name" defaultValue="Acme Co." />
-                <Input label="Industry" defaultValue="Technology" />
-                <Input label="Billing Email" defaultValue="billing@acme.com" />
-                <Input label="Address" defaultValue="123 Tech Blvd, San Francisco, CA" />
-            </div>
-            <div className="mt-6 flex justify-end">
-                <Button>Save Changes</Button>
-            </div>
-        </Card>
-        <Card className="p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Admin Users</h3>
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">A</div>
-                        <div>
-                            <p className="font-medium text-gray-900">Admin User</p>
-                            <p className="text-xs text-gray-500">admin@acme.com</p>
-                        </div>
-                    </div>
-                    <Button size="sm" variant="ghost">Remove</Button>
+            <Card className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-bold text-gray-900">Purchase History</h3>
+                    <Button size="sm" variant="outline" onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = 'data:text/plain;charset=utf-8,Invoice%20Export';
+                        link.download = 'invoice.txt';
+                        link.click();
+                    }}><Download size={16} className="mr-2" /> Export Invoice</Button>
                 </div>
-                <Button variant="outline" size="sm" className="w-full"><Plus size={16} className="mr-2" /> Add Admin</Button>
-            </div>
-        </Card>
-    </div>
-);
+                <div className="space-y-4">
+                    {[1, 2].map(i => (
+                        <div key={i} className="flex justify-between items-center py-3 border-b border-gray-50 last:border-0">
+                            <div>
+                                <p className="font-medium text-gray-900">5000 Credits Pack</p>
+                                <p className="text-xs text-gray-500">Invoice #INV-2024-00{i} • Oct 20, 2024</p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                    <p className="font-bold text-gray-900">$4,000.00</p>
+                                    <span className="text-xs text-emerald-600">Paid</span>
+                                </div>
+                                <Link to={`/invoice/${i}`}>
+                                    <Button size="sm" variant="ghost">View</Button>
+                                </Link>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </Card>
+
+            <PaymentModal
+                isOpen={isPaymentModalOpen}
+                onClose={() => setIsPaymentModalOpen(false)}
+                onSuccess={() => alert('Corporate purchase successful (Simulation)')}
+                currency="USD"
+            />
+        </div>
+    );
+};
+
+export const CompanySettings: React.FC = () => {
+    const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
+
+    return (
+        <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Company Settings</h1>
+            <Card className="p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Organization Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input label="Company Name" defaultValue="Acme Co." />
+                    <Input label="Industry" defaultValue="Technology" />
+                    <Input label="Billing Email" defaultValue="billing@acme.com" />
+                    <Input label="Address" defaultValue="123 Tech Blvd, San Francisco, CA" />
+                </div>
+                <div className="mt-6 flex justify-end">
+                    <Button>Save Changes</Button>
+                </div>
+            </Card>
+            <Card className="p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Admin Users</h3>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">A</div>
+                            <div>
+                                <p className="font-medium text-gray-900">Admin User</p>
+                                <p className="text-xs text-gray-500">admin@acme.com</p>
+                            </div>
+                        </div>
+                        <Button size="sm" variant="ghost">Remove</Button>
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => setIsAddAdminOpen(true)}>
+                        <Plus size={16} className="mr-2" /> Add Admin
+                    </Button>
+                </div>
+            </Card>
+
+            <AddAdminModal
+                isOpen={isAddAdminOpen}
+                onClose={() => setIsAddAdminOpen(false)}
+                onAdd={(email, name) => console.log('Admin added', email, name)}
+            />
+        </div>
+    );
+};

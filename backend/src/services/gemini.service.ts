@@ -20,6 +20,22 @@ class GeminiService {
     });
   }
 
+  // --- Vector Memory Simulation ---
+  // In a real implementation, this would connect to Pinecone/Milvus
+  private memoryStore: Map<string, string[]> = new Map();
+
+  async addToMemory(userId: string, interaction: string) {
+    const history = this.memoryStore.get(userId) || [];
+    history.push(interaction);
+    if (history.length > 20) history.shift(); // Keep last 20 context interactions
+    this.memoryStore.set(userId, history);
+  }
+
+  async retrieveContext(userId: string): Promise<string> {
+    const history = this.memoryStore.get(userId) || [];
+    return history.join('\n');
+  }
+
   /**
    * Generate expert recommendations based on user preferences and needs
    */
@@ -60,9 +76,9 @@ Format your response as a clear, helpful recommendation list.`;
     try {
       const avgRating = sessionData.ratings.length
         ? (
-            sessionData.ratings.reduce((a, b) => a + b, 0) /
-            sessionData.ratings.length
-          ).toFixed(1)
+          sessionData.ratings.reduce((a, b) => a + b, 0) /
+          sessionData.ratings.length
+        ).toFixed(1)
         : 'N/A';
 
       const prompt = `You are a wellbeing insights analyst. Analyze the following user's wellness journey and provide personalized insights:
@@ -226,17 +242,24 @@ EXPLANATION: [text]`;
   /**
    * Generate personalized chat response for user queries
    */
-  async chatAssistant(userMessage: string, context?: string): Promise<string> {
+  async chatAssistant(userMessage: string, userId: string): Promise<string> {
     try {
+      const context = await this.retrieveContext(userId);
       const prompt = `You are a helpful wellness assistant for Serene Wellbeing Hub.
+      
+      Previous Context: ${context}
+      
+      User Question: ${userMessage}
 
-${context ? `Context: ${context}\n\n` : ''}User Question: ${userMessage}
-
-Provide a helpful, empathetic, and informative response. If the question is about booking sessions, finding experts, or platform features, guide them appropriately. Keep responses concise (3-5 sentences) unless more detail is needed.`;
+      Provide a helpful, empathetic, and informative response. If the question is about booking sessions, finding experts, or platform features, guide them appropriately. Keep responses concise (3-5 sentences) unless more detail is needed.`;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
-      return response.text();
+      const text = response.text();
+
+      await this.addToMemory(userId, `User: ${userMessage}\nAI: ${text}`);
+
+      return text;
     } catch (error: any) {
       logger.error('Gemini API error:', error.message);
       throw new AppError('Failed to generate response', 500);

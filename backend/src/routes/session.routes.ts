@@ -9,6 +9,8 @@ import {
   cancelSession,
   rateSession,
   getUpcomingSessions,
+  acceptSession,
+  rejectSession,
 } from '../controllers/session.controller';
 import { protect, authorize } from '../middleware/auth';
 import { validate } from '../middleware/validation';
@@ -48,6 +50,8 @@ router.post('/:id/rate', validate(rateSessionValidation), rateSession);
 
 // Expert routes
 router.get('/expert/all', authorize('expert'), getExpertSessions);
+router.post('/:id/accept', authorize('expert'), acceptSession);
+router.post('/:id/reject', authorize('expert'), rejectSession);
 
 // Shared routes
 router.get('/:id', getSessionById);

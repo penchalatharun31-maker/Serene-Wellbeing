@@ -49,40 +49,20 @@ export const createPaymentOrder = async (
       throw new AppError('Not authorized', 403);
     }
 
-    // Fetch user to get preferred currency/timezone if not provided
-    const user = await User.findById(req.user!._id);
-    const finalCurrency = currency || user?.preferredCurrency || process.env.DEFAULT_CURRENCY || 'INR';
-    const finalTimezone = timezone || user?.timezone || process.env.DEFAULT_TIMEZONE || 'UTC';
+    // Determine currency: prioritize session currency, fallback to 'inr' (for Razorpay compliance if needed)
+    const currency = session.currency ? session.currency.toLowerCase() : 'inr';
 
-    // Validate currency
-    if (!isValidCurrency(finalCurrency)) {
-      throw new AppError(`Currency ${finalCurrency} is not supported`, 400);
-    }
-
-    // Validate amount
-    const amountValidation = validateAmount(amount, finalCurrency);
-    if (!amountValidation.isValid) {
-      throw new AppError(amountValidation.error!, 400);
-    }
-
-    // Validate timezone
-    if (!isValidTimezone(finalTimezone)) {
-      throw new AppError(`Invalid timezone: ${finalTimezone}`, 400);
-    }
-
-    // Convert amount to smallest currency unit
-    const currencyMultiplier = getCurrencyMultiplier(finalCurrency);
-
-    // Create Razorpay order
-    const order = await razorpay.orders.create({
-      amount: Math.round(amount * currencyMultiplier),
-      currency: finalCurrency.toUpperCase(),
-      receipt: `session_${session._id.toString()}`,
-      notes: {
+    // Create payment intent using Stripe (keeping existing logic for now, but dynamic)
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents/paise
+      currency: currency,
+      metadata: {
         sessionId: session._id.toString(),
         userId: req.user!._id.toString(),
         timezone: finalTimezone,
       },
+      // Note: For India (INR), description and shipping address might be required by Stripe regulations
+      description: `Session with Expert ${session.expertId}`,
     });
 
     // Update session with order ID, currency, and timezone
@@ -118,12 +98,80 @@ export const createPaymentOrder = async (
   }
 };
 
-// Note: getCurrencyMultiplier is imported from ../utils/payment
+const Razorpay = require('razorpay');
 
-/**
- * Verify Razorpay Payment Signature
- */
-export const verifyPayment = async (
+// Razorpay Integration
+export const createRazorpayOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { sessionId, amount, currency } = req.body;
+
+    // Initialize Razorpay
+    const instance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_stub',
+      key_secret: process.env.RAZORPAY_KEY_SECRET || 'secret'
+    });
+
+    const options = {
+      amount: Math.round(amount * 100), // amount in lowest denomination (paise)
+      currency: currency || 'INR',
+      receipt: sessionId || `rcpt_${Date.now()}`,
+      notes: {
+        userId: req.user ? req.user._id.toString() : 'guest'
+      }
+    };
+
+    const order = await instance.orders.create(options);
+
+    res.status(200).json({
+      success: true,
+      order
+    });
+  } catch (error) {
+    logger.error('Razorpay order creation failed:', error);
+    next(new AppError('Payment processing failed', 500));
+  }
+};
+
+// Razorpay Payment Verification
+export const verifyRazorpayPayment = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      throw new AppError('Missing payment verification parameters', 400);
+    }
+
+    // Verify signature
+    const crypto = require('crypto');
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (expectedSignature !== razorpay_signature) {
+      logger.error('Razorpay signature verification failed');
+      throw new AppError('Payment verification failed', 400);
+    }
+
+    logger.info(`Razorpay payment verified successfully: ${razorpay_payment_id}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment verified successfully',
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id,
+    });
+  } catch (error: any) {
+    logger.error('Razorpay payment verification failed:', error);
+    next(error instanceof AppError ? error : new AppError('Payment verification failed', 500));
+  }
+};
+
+export const confirmPayment = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction

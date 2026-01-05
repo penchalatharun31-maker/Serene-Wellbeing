@@ -1,11 +1,3 @@
-import { IUser } from '../models/User';
-
-declare global {
-  namespace Express {
-    interface Request {
-      user?: IUser;
-    }
-  }
-}
-
+// Type declarations are now handled via AuthRequest interface in middleware/auth.ts
+// This file is kept for future Express type extensions if needed
 export {};

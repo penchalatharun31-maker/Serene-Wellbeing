@@ -8,6 +8,8 @@ import {
   getPaymentHistory,
   requestRefund,
   webhookHandler,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
 } from '../controllers/payment.controller';
 import { protect } from '../middleware/auth';
 import { validate } from '../middleware/validation';
@@ -36,11 +38,11 @@ const purchaseCreditsValidation = [
   body('credits').isInt({ min: 1 }).withMessage('Credits must be at least 1'),
 ];
 
-// Payment routes
-router.post('/create-order', validate(createPaymentValidation), createPaymentOrder);
-router.post('/verify', validate(verifyPaymentValidation), verifyPayment);
-
-// Credits routes
+router.post('/create-intent', validate(createPaymentValidation), createPaymentIntent);
+router.post('/create-razorpay-order', createRazorpayOrder);
+router.post('/create-order', createRazorpayOrder); // Alias for BookSessionModal compatibility
+router.post('/verify', verifyRazorpayPayment); // Razorpay payment verification
+router.post('/confirm', confirmPayment);
 router.post('/credits/purchase', validate(purchaseCreditsValidation), purchaseCredits);
 router.post('/credits/verify', verifyCreditPurchase);
 

@@ -10,8 +10,8 @@ export interface IUser extends Document {
   phone?: string;
   dateOfBirth?: Date;
   credits: number;
-  preferredCurrency?: string; // User's preferred currency (INR, USD, EUR, etc.)
-  timezone?: string; // User's timezone (UTC, Asia/Kolkata, America/New_York, etc.)
+  country?: string;
+  currency?: string;
   companyId?: mongoose.Types.ObjectId;
   isVerified: boolean;
   isActive: boolean;
@@ -72,14 +72,13 @@ const UserSchema = new Schema<IUser>(
       default: 0,
       min: [0, 'Credits cannot be negative'],
     },
-    preferredCurrency: {
+    country: {
       type: String,
-      uppercase: true,
-      default: process.env.DEFAULT_CURRENCY || 'INR',
+      default: 'India',
     },
-    timezone: {
+    currency: {
       type: String,
-      default: process.env.DEFAULT_TIMEZONE || 'UTC',
+      default: 'INR',
     },
     companyId: {
       type: Schema.Types.ObjectId,
