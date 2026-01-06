@@ -1,3 +1,24 @@
+/**
+ * PAYMENT GATEWAY ARCHITECTURE (B2C)
+ *
+ * PRIMARY PAYMENT GATEWAY: Razorpay
+ * - Used for all B2C transactions (credit purchases, session bookings)
+ * - Supports UPI, Cards, NetBanking for Indian users
+ * - Main endpoints: /create-razorpay-order, /verify
+ *
+ * SECONDARY PAYMENT GATEWAY: Stripe (kept for future international expansion)
+ * - Currently used as fallback for international users
+ * - Main endpoints: /create-intent, /confirm
+ *
+ * B2C USER FLOW:
+ * 1. User selects credits/session
+ * 2. Frontend calls /create-razorpay-order
+ * 3. Razorpay checkout opens
+ * 4. User completes payment
+ * 5. Frontend calls /verify to confirm payment
+ * 6. Credits/session status updated
+ */
+
 import { Response, NextFunction } from 'express';
 import Stripe from 'stripe';
 import Session from '../models/Session';
@@ -7,6 +28,7 @@ import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../utils/errors';
 import logger from '../utils/logger';
 
+// Stripe instance (for international transactions if needed)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-04-10',
 });
@@ -61,7 +83,11 @@ export const createPaymentIntent = async (
 
 const Razorpay = require('razorpay');
 
-// Razorpay Integration
+/**
+ * PRIMARY B2C PAYMENT METHOD - RAZORPAY
+ * Creates a Razorpay order for credit purchase or session booking
+ * This is the main payment endpoint for all B2C users
+ */
 export const createRazorpayOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { sessionId, amount, currency } = req.body;

@@ -8,6 +8,7 @@ import Landing from './pages/Landing';
 import Onboarding from './pages/Onboarding';
 import CompanyOnboarding from './pages/CompanyOnboarding';
 import ExpertOnboarding from './pages/ExpertOnboarding';
+import UnderReview from './pages/UnderReview';
 import Browse from './pages/Browse';
 import ExpertProfile from './pages/ExpertProfile';
 import Login from './pages/Login';
@@ -71,6 +72,7 @@ const App: React.FC = () => {
                     <Route path="/onboarding" element={<Onboarding />} />
                     <Route path="/company-onboarding" element={<CompanyOnboarding />} />
                     <Route path="/expert-onboarding" element={<ExpertOnboarding />} />
+                    <Route path="/under-review" element={<UnderReview />} />
 
                     {/* Public Routes */}
                     <Route element={<PublicLayout />}>
@@ -91,11 +93,11 @@ const App: React.FC = () => {
                         <Route path="/session/:sessionId/video" element={<ProtectedRoute><VideoSession /></ProtectedRoute>} />
                     </Route>
 
-                    {/* Protected User Dashboard Routes */}
+                    {/* Protected User Dashboard Routes - Only accessible to 'user' role */}
                     <Route
                         path="/dashboard/user"
                         element={
-                            <ProtectedRoute>
+                            <ProtectedRoute allowedRoles={['user']}>
                                 <DashboardLayout type="user" />
                             </ProtectedRoute>
                         }
@@ -105,11 +107,11 @@ const App: React.FC = () => {
                         <Route path="settings" element={<UserSettings />} />
                     </Route>
 
-                    {/* Protected Expert Dashboard Routes */}
+                    {/* Protected Expert Dashboard Routes - Only accessible to 'expert' role */}
                     <Route
                         path="/dashboard/expert"
                         element={
-                            <ProtectedRoute>
+                            <ProtectedRoute allowedRoles={['expert']}>
                                 <DashboardLayout type="expert" />
                             </ProtectedRoute>
                         }
@@ -123,11 +125,11 @@ const App: React.FC = () => {
                         <Route path="profile" element={<ExpertSettings />} />
                     </Route>
 
-                    {/* Protected Company Dashboard Routes */}
+                    {/* Protected Company Dashboard Routes - Only accessible to 'company' role */}
                     <Route
                         path="/dashboard/company"
                         element={
-                            <ProtectedRoute>
+                            <ProtectedRoute allowedRoles={['company']}>
                                 <DashboardLayout type="company" />
                             </ProtectedRoute>
                         }
@@ -138,11 +140,11 @@ const App: React.FC = () => {
                         <Route path="settings" element={<CompanySettings />} />
                     </Route>
 
-                    {/* Protected Super Admin Dashboard Routes */}
+                    {/* Protected Super Admin Dashboard Routes - Only accessible to 'super_admin' role */}
                     <Route
                         path="/dashboard/admin"
                         element={
-                            <ProtectedRoute>
+                            <ProtectedRoute allowedRoles={['super_admin']}>
                                 <DashboardLayout type="super_admin" />
                             </ProtectedRoute>
                         }
