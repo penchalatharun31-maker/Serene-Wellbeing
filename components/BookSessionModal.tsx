@@ -26,6 +26,12 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
+  // Handle both backend API format and legacy mock format
+  const expertId = (expert as any)._id || expert.id;
+  const expertName = (expert as any).userId?.name || expert.name;
+  const expertImage = (expert as any).profilePhoto || (expert as any).userId?.avatar || expert.image;
+  const expertPrice = (expert as any).hourlyRate || expert.price;
+
   if (!isOpen) return null;
 
   const handleBack = () => {
@@ -42,7 +48,7 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
       setError(null);
 
       // Check if this is a demo/mock expert (onboarding flow with IDs like '1', '2', '3')
-      const isMockExpert = /^[0-9]$/.test(expert.id);
+      const isMockExpert = /^[0-9]$/.test(expertId);
 
       if (isMockExpert) {
         // DEMO MODE: Simulate successful booking without backend
@@ -67,7 +73,7 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
       // Calculate price based on duration
-      const hourlyRate = expert.price;
+      const hourlyRate = expertPrice;
       const price = duration === 30 ? hourlyRate / 2 : duration === 60 ? hourlyRate : hourlyRate * 1.5;
 
       // Calculate endTime
@@ -104,7 +110,7 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
         amount: orderData.order.amount,
         currency: orderData.order.currency,
         name: 'Serene Wellbeing',
-        description: `Session with ${expert.name}`,
+        description: `Session with ${expertName}`,
         order_id: orderData.order.id,
         handler: async function (response: any) {
           try {
@@ -136,7 +142,7 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
                 'Authorization': `Bearer ${token}`,
               },
               body: JSON.stringify({
-                expertId: expert.id,
+                expertId: expertId,
                 scheduledDate: selectedDate,
                 scheduledTime: selectedTime,
                 endTime: endTime,
@@ -209,7 +215,7 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
   };
 
   const calculatePrice = () => {
-    const hourlyRate = expert.price;
+    const hourlyRate = expertPrice;
     if (duration === 30) return hourlyRate / 2;
     if (duration === 60) return hourlyRate;
     return hourlyRate * 1.5; // 90 minutes
@@ -242,18 +248,18 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
             {/* Expert Info */}
             <div className="flex items-center p-4 bg-emerald-50 rounded-xl border border-emerald-100 mb-6">
               <img
-                src={expert.image || expert.profilePhoto}
+                src={expertImage}
                 className="w-14 h-14 rounded-full object-cover mr-4"
-                alt={expert.name}
+                alt={expertName}
               />
               <div className="flex-1">
-                <p className="font-bold text-gray-900">{expert.name}</p>
+                <p className="font-bold text-gray-900">{expertName}</p>
                 <p className="text-sm text-emerald-700">{expert.title}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-gray-600">Starting at</p>
                 <p className="text-lg font-bold text-emerald-600">
-                  {currencySymbol}{expert.price}/hr
+                  {currencySymbol}{expertPrice}/hr
                 </p>
               </div>
             </div>
@@ -278,7 +284,7 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
                         {mins} min
                         <div className="text-xs mt-1">
                           {currencySymbol}
-                          {mins === 30 ? expert.price / 2 : mins === 60 ? expert.price : expert.price * 1.5}
+                          {mins === 30 ? expertPrice / 2 : mins === 60 ? expertPrice : expertPrice * 1.5}
                         </div>
                       </button>
                     ))}
@@ -289,7 +295,7 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">Select Date</label>
                   <CalendarPicker
-                    expertId={expert.id}
+                    expertId={expertId}
                     onDateSelect={setSelectedDate}
                     selectedDate={selectedDate}
                     duration={duration}
@@ -301,7 +307,7 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
                   <div className="animate-fade-in">
                     <label className="block text-sm font-medium text-gray-700 mb-3">Select Time</label>
                     <TimeSlotPicker
-                      expertId={expert.id}
+                      expertId={expertId}
                       selectedDate={selectedDate}
                       duration={duration}
                       onTimeSelect={setSelectedTime}
@@ -391,7 +397,7 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Session Booked!</h3>
                 <p className="text-gray-600 mb-6">
-                  Your session with {expert.name} has been confirmed for{' '}
+                  Your session with {expertName} has been confirmed for{' '}
                   <span className="font-semibold">
                     {selectedDate && formatDate(selectedDate)} at{' '}
                     {selectedTime && formatTime12h(selectedTime)}
