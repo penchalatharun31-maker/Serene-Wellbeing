@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { EXPERTS } from '../data';
+import { expertService, Expert } from '../services/expert.service';
 import { Button, Card, Badge } from '../components/UI';
 import { BookSessionModal } from '../components/BookSessionModal';
 import { Star, MapPin, Calendar, Clock, Award, ShieldCheck, MessageSquare, ArrowLeft } from 'lucide-react';
@@ -10,10 +10,31 @@ import { SignInRequiredModal } from '../components/SignInRequiredModal';
 const ExpertProfile: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const expert = EXPERTS.find(e => e.id === id) || EXPERTS[0];
+    const [expert, setExpert] = useState<Expert | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [isBookingOpen, setIsBookingOpen] = useState(false);
     const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
     const { isAuthenticated } = useAuth();
+
+    useEffect(() => {
+        const fetchExpert = async () => {
+            if (!id) return;
+            try {
+                setLoading(true);
+                const response = await expertService.getExpertById(id);
+                if (response.success && response.data) {
+                    setExpert(response.data);
+                }
+            } catch (err: any) {
+                console.error('Error fetching expert:', err);
+                setError(err.message || 'Failed to load expert profile');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchExpert();
+    }, [id]);
 
     const handleBookClick = () => {
         if (isAuthenticated) {
@@ -26,8 +47,33 @@ const ExpertProfile: React.FC = () => {
     const handleBookingSuccess = () => {
         setIsBookingOpen(false);
         // Redirect to user's sessions page or show success message
-        navigate('/dashboard/sessions');
+        navigate('/dashboard/user/sessions');
     };
+
+    if (loading) {
+        return (
+            <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading expert profile...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error || !expert) {
+        return (
+            <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-red-600 mb-4">{error || 'Expert not found'}</p>
+                    <Button onClick={() => navigate('/browse')}>Back to Browse</Button>
+                </div>
+            </div>
+        );
+    }
+
+    const expertImage = expert.profilePhoto || expert.userId?.avatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=400';
+    const expertName = expert.userId?.name || 'Expert';
 
     return (
         <div className="bg-gray-50 min-h-screen py-12">
@@ -48,24 +94,24 @@ const ExpertProfile: React.FC = () => {
                             <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-emerald-100 to-teal-50 opacity-50"></div>
                             <div className="relative flex flex-col sm:flex-row gap-6 items-start">
                                 <img
-                                    src={expert.image}
-                                    alt={expert.name}
+                                    src={expertImage}
+                                    alt={expertName}
                                     className="w-32 h-32 rounded-2xl object-cover border-4 border-white shadow-md"
                                 />
                                 <div className="flex-1 pt-2">
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
                                         <div>
-                                            <h1 className="text-3xl font-bold text-gray-900">{expert.name}</h1>
+                                            <h1 className="text-3xl font-bold text-gray-900">{expertName}</h1>
                                             <p className="text-emerald-600 font-medium text-lg">{expert.title}</p>
                                         </div>
                                         <div className="flex items-center gap-1 bg-white border border-gray-100 shadow-sm px-3 py-1.5 rounded-full">
                                             <Star size={16} className="text-yellow-400 fill-current" />
-                                            <span className="font-bold text-gray-900">{expert.rating}</span>
-                                            <span className="text-gray-400 text-sm">({expert.reviews} reviews)</span>
+                                            <span className="font-bold text-gray-900">{expert.rating.toFixed(1)}</span>
+                                            <span className="text-gray-400 text-sm">({expert.reviewCount} reviews)</span>
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap gap-2 mt-4">
-                                        {expert.tags.map(tag => <Badge key={tag} color="emerald">{tag}</Badge>)}
+                                        {expert.specialization?.slice(0, 5).map((spec, idx) => <Badge key={idx} color="emerald">{spec}</Badge>)}
                                     </div>
                                 </div>
                             </div>
@@ -75,9 +121,13 @@ const ExpertProfile: React.FC = () => {
                         <Card className="p-8">
                             <h2 className="text-xl font-bold text-gray-900 mb-4">About Me</h2>
                             <p className="text-gray-600 leading-relaxed mb-6">
-                                {expert.about}
-                                <br /><br />
-                                I believe in a holistic approach to wellbeing, integrating evidence-based practices with personalized care. My sessions are designed to be a safe space where we can work together to achieve your goals.
+                                {expert.bio}
+                                {expert.personalStory && (
+                                    <>
+                                        <br /><br />
+                                        {expert.personalStory}
+                                    </>
+                                )}
                             </p>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
@@ -101,23 +151,40 @@ const ExpertProfile: React.FC = () => {
                         {/* Reviews */}
                         <Card className="p-8">
                             <h2 className="text-xl font-bold text-gray-900 mb-6">Client Reviews</h2>
-                            <div className="space-y-6">
-                                {[1, 2].map((i) => (
-                                    <div key={i} className="border-b border-gray-100 last:border-0 pb-6 last:pb-0">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <div className="flex text-yellow-400">
-                                                {[...Array(5)].map((_, j) => <Star key={j} size={14} fill="currentColor" />)}
+                            {expert.clientSuccessStories && expert.clientSuccessStories.length > 0 ? (
+                                <div className="space-y-6">
+                                    {expert.clientSuccessStories.slice(0, 2).map((story, i) => (
+                                        <div key={i} className="border-b border-gray-100 last:border-0 pb-6 last:pb-0">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="flex text-yellow-400">
+                                                    {[...Array(5)].map((_, j) => <Star key={j} size={14} fill="currentColor" />)}
+                                                </div>
+                                                <span className="text-sm font-bold text-gray-900">Success Story</span>
                                             </div>
-                                            <span className="text-sm font-bold text-gray-900">Life changing experience</span>
+                                            <p className="text-gray-600 text-sm mb-2">"{story}"</p>
+                                            <p className="text-xs text-gray-400">Verified Client</p>
                                         </div>
-                                        <p className="text-gray-600 text-sm mb-2">
-                                            "Absolutely wonderful session. {expert.name.split(' ')[0]} is incredibly knowledgeable and empathetic. I felt heard and understood."
-                                        </p>
-                                        <p className="text-xs text-gray-400">Sarah J. • 2 days ago</p>
-                                    </div>
-                                ))}
-                            </div>
-                            <Button variant="outline" className="w-full mt-6">View all {expert.reviews} reviews</Button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {[1, 2].map((i) => (
+                                        <div key={i} className="border-b border-gray-100 last:border-0 pb-6 last:pb-0">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="flex text-yellow-400">
+                                                    {[...Array(5)].map((_, j) => <Star key={j} size={14} fill="currentColor" />)}
+                                                </div>
+                                                <span className="text-sm font-bold text-gray-900">Excellent Experience</span>
+                                            </div>
+                                            <p className="text-gray-600 text-sm mb-2">
+                                                "Absolutely wonderful session. {expertName.split(' ')[0]} is incredibly knowledgeable and empathetic. I felt heard and understood."
+                                            </p>
+                                            <p className="text-xs text-gray-400">Verified Client</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <Button variant="outline" className="w-full mt-6">View all {expert.reviewCount} reviews</Button>
                         </Card>
                     </div>
 
@@ -126,8 +193,8 @@ const ExpertProfile: React.FC = () => {
                         <div className="sticky top-24 space-y-4">
                             <Card className="p-6 shadow-lg border-emerald-100">
                                 <div className="flex justify-between items-baseline mb-6">
-                                    <span className="text-3xl font-bold text-gray-900">₹{expert.price}</span>
-                                    <span className="text-gray-500">per session</span>
+                                    <span className="text-3xl font-bold text-gray-900">₹{expert.hourlyRate}</span>
+                                    <span className="text-gray-500">per hour</span>
                                 </div>
 
                                 <div className="space-y-4 mb-6">
