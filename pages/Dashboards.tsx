@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge, Input, ImageUpload } from '../components/UI';
-import { UPCOMING_SESSIONS, PAST_SESSIONS, REVENUE_DATA, ENGAGEMENT_DATA } from '../data';
+import { REVENUE_DATA, ENGAGEMENT_DATA } from '../data';
 import { Activity, BadgeCheck, BarChart2, Calendar, CheckCircle, ChevronRight, Clock, CreditCard, DollarSign, Download, LayoutDashboard, Mail, MessageCircle, Plus, PlusCircle, Search, Settings, ShieldCheck, Star, TrendingUp, Trash, Users, Video, XCircle, ArrowRight, Briefcase, FileText, Loader2 } from 'lucide-react';
 import apiClient from '../services/api';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { PaymentModal } from '../components/PaymentModal';
 import { expertService } from '../services/expert.service';
+import { sessionService } from '../services/session.service';
 
 // --- Shared Components ---
 
@@ -33,34 +34,54 @@ const StatCard: React.FC<{ label: string; value: string; icon: any; trend?: stri
     );
 };
 
-const SessionRow: React.FC<{ session: any; isPast?: boolean }> = ({ session, isPast }) => (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-emerald-200 transition-colors gap-4">
-        <div className="flex items-center gap-4">
-            <div className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl font-bold border flex-shrink-0 ${isPast ? 'bg-gray-50 text-gray-500 border-gray-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
-                <span className="text-xs uppercase">{session.date.split(' ')[0]}</span>
-                <span className="text-lg">{session.date.split(' ')[1].replace(',', '')}</span>
+const SessionRow: React.FC<{ session: any; isPast?: boolean }> = ({ session, isPast }) => {
+    const sessionDate = new Date(session.scheduledDate);
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = monthNames[sessionDate.getMonth()];
+    const day = sessionDate.getDate();
+    const expertName = session.expertId?.userId?.name || session.expertId?.name || 'Expert';
+    const sessionType = session.type === 'individual' ? 'Individual Session' : 'Group Session';
+
+    return (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-emerald-200 transition-colors gap-4">
+            <div className="flex items-center gap-4">
+                <div className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl font-bold border flex-shrink-0 ${isPast ? 'bg-gray-50 text-gray-500 border-gray-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                    <span className="text-xs uppercase">{month}</span>
+                    <span className="text-lg">{day}</span>
+                </div>
+                <div>
+                    <h4 className="font-bold text-gray-900">{sessionType}</h4>
+                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                        with {expertName} • {session.scheduledTime} ({session.duration}min)
+                    </p>
+                    {session.status && (
+                        <Badge color={session.status === 'confirmed' ? 'emerald' : session.status === 'pending' ? 'orange' : 'gray'} className="mt-1">
+                            {session.status}
+                        </Badge>
+                    )}
+                </div>
             </div>
-            <div>
-                <h4 className="font-bold text-gray-900">{session.type}</h4>
-                <p className="text-sm text-gray-500 flex items-center gap-2">
-                    with {session.expertName} • {session.time}
-                </p>
+            <div className="flex gap-2 w-full sm:w-auto">
+                {isPast ? (
+                    <Button size="sm" variant="ghost" className="w-full sm:w-auto">View Notes</Button>
+                ) : (
+                    <>
+                        <Button size="sm" variant="outline" className="w-full sm:w-auto">Reschedule</Button>
+                        {session.meetingLink ? (
+                            <a href={session.meetingLink} target="_blank" rel="noopener noreferrer">
+                                <Button size="sm" className="w-full sm:w-auto text-white bg-emerald-600 hover:bg-emerald-700">Join Video</Button>
+                            </a>
+                        ) : (
+                            <Link to={`/session/${session._id}/video`}>
+                                <Button size="sm" className="w-full sm:w-auto text-white bg-emerald-600 hover:bg-emerald-700">Join Video</Button>
+                            </Link>
+                        )}
+                    </>
+                )}
             </div>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-            {isPast ? (
-                <Button size="sm" variant="ghost" className="w-full sm:w-auto">View Notes</Button>
-            ) : (
-                <>
-                    <Button size="sm" variant="outline" className="w-full sm:w-auto">Reschedule</Button>
-                    <Link to={`/session/${session.id}/video`}>
-                        <Button size="sm" className="w-full sm:w-auto text-white bg-emerald-600 hover:bg-emerald-700">Join Video</Button>
-                    </Link>
-                </>
-            )}
-        </div>
-    </div>
-);
+    );
+};
 
 // --- USER DASHBOARD VIEWS ---
 
@@ -68,6 +89,25 @@ export const UserDashboard: React.FC = () => {
     const { user, updateUser } = useAuth();
     const navigate = useNavigate();
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [upcomingSessions, setUpcomingSessions] = useState<any[]>([]);
+    const [loadingSessions, setLoadingSessions] = useState(true);
+
+    useEffect(() => {
+        const fetchUpcomingSessions = async () => {
+            try {
+                setLoadingSessions(true);
+                const response = await sessionService.getUpcomingSessions();
+                if (response.success && response.data) {
+                    setUpcomingSessions(response.data.slice(0, 3)); // Show only first 3 on dashboard
+                }
+            } catch (error) {
+                console.error('Error fetching upcoming sessions:', error);
+            } finally {
+                setLoadingSessions(false);
+            }
+        };
+        fetchUpcomingSessions();
+    }, []);
 
     const handleTopUpSuccess = (credits: number) => {
         if (user) {
@@ -91,9 +131,20 @@ export const UserDashboard: React.FC = () => {
                         <h3 className="font-bold text-gray-900">Upcoming Sessions</h3>
                         <Link to="/dashboard/user/sessions" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">View All</Link>
                     </div>
-                    <div className="space-y-4">
-                        {UPCOMING_SESSIONS.map(s => <SessionRow key={s.id} session={s} />)}
-                    </div>
+                    {loadingSessions ? (
+                        <div className="flex justify-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+                        </div>
+                    ) : upcomingSessions.length > 0 ? (
+                        <div className="space-y-4">
+                            {upcomingSessions.map(s => <SessionRow key={s._id} session={s} />)}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8">
+                            <p className="text-gray-500 mb-4">No upcoming sessions</p>
+                            <Button size="sm" onClick={() => navigate('/browse')}>Book Your First Session</Button>
+                        </div>
+                    )}
                 </Card>
 
                 <div className="space-y-6">
@@ -137,6 +188,45 @@ export const UserDashboard: React.FC = () => {
 
 export const UserSessions: React.FC = () => {
     const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
+    const [sessions, setSessions] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSessions = async () => {
+            try {
+                setLoading(true);
+                const status = tab === 'upcoming' ? 'confirmed,pending' : 'completed,cancelled';
+                const response = await sessionService.getUserSessions({
+                    status: tab === 'upcoming' ? undefined : status,
+                    page: 1,
+                    limit: 50
+                });
+                if (response.success && response.data) {
+                    if (tab === 'upcoming') {
+                        // Filter for upcoming sessions (pending or confirmed and in the future)
+                        const now = new Date();
+                        const upcoming = response.data.sessions?.filter((s: any) => {
+                            const sessionDate = new Date(s.scheduledDate);
+                            return (s.status === 'pending' || s.status === 'confirmed') && sessionDate >= now;
+                        }) || [];
+                        setSessions(upcoming);
+                    } else {
+                        // Show completed and cancelled sessions
+                        const past = response.data.sessions?.filter((s: any) =>
+                            s.status === 'completed' || s.status === 'cancelled'
+                        ) || [];
+                        setSessions(past);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching sessions:', error);
+                setSessions([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSessions();
+    }, [tab]);
 
     return (
         <div className="space-y-6">
@@ -157,21 +247,21 @@ export const UserSessions: React.FC = () => {
                 </button>
             </div>
 
-            <div className="space-y-4">
-                {tab === 'upcoming' ? (
-                    UPCOMING_SESSIONS.length > 0 ? (
-                        UPCOMING_SESSIONS.map(s => <SessionRow key={s.id} session={s} />)
+            {loading ? (
+                <div className="flex justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {sessions.length > 0 ? (
+                        sessions.map(s => <SessionRow key={s._id} session={s} isPast={tab === 'past'} />)
                     ) : (
-                        <p className="text-gray-500 text-center py-8">No upcoming sessions.</p>
-                    )
-                ) : (
-                    PAST_SESSIONS.length > 0 ? (
-                        PAST_SESSIONS.map(s => <SessionRow key={s.id} session={s} isPast />)
-                    ) : (
-                        <p className="text-gray-500 text-center py-8">No session history.</p>
-                    )
-                )}
-            </div>
+                        <p className="text-gray-500 text-center py-8">
+                            {tab === 'upcoming' ? 'No upcoming sessions.' : 'No session history.'}
+                        </p>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
