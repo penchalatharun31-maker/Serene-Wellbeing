@@ -32,9 +32,10 @@ export const protect = async (
     }
 
     try {
-      // Verify token
+      // Verify token and decode payload (including role for efficient authorization)
       const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
         id: string;
+        role?: string;
       };
 
       // Get user from token
@@ -104,6 +105,7 @@ export const optional = async (
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
           id: string;
+          role?: string;
         };
         const user = await User.findById(decoded.id);
         if (user && user.isActive) {
