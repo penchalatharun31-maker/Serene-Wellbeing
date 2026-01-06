@@ -10,30 +10,45 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
-  const initialRole = (queryParams.get('role') as User['role']) || 'user';
+  const showCompanyBranding = queryParams.get('type') === 'company';
 
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<User['role']>(initialRole);
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login(email, 'password123'); // Simple mock login with email
+    setError(null);
+    setLoading(true);
+    try {
+      // AuthContext handles automatic redirect based on user's role from backend
+      await login(email, password);
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
     try {
-      await login('guest@google.com', 'password123', true);
-      navigate(`/dashboard/${role}`);
-    } catch (e) {
-      console.error(e);
+      setLoading(true);
+      setError(null);
+      // AuthContext handles automatic redirect based on user's role from backend
+      await login('guest@google.com', 'password123');
+    } catch (e: any) {
+      setError(e.message || 'Google login failed');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 ${role === 'company' ? 'lg:bg-white' : ''}`}>
-      <div className={`w-full space-y-8 ${role === 'company' ? 'max-w-5xl flex flex-col lg:flex-row gap-16 items-center' : 'max-w-md'}`}>
+    <div className={`min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 ${showCompanyBranding ? 'lg:bg-white' : ''}`}>
+      <div className={`w-full space-y-8 ${showCompanyBranding ? 'max-w-5xl flex flex-col lg:flex-row gap-16 items-center' : 'max-w-md'}`}>
 
-        {role === 'company' && (
+        {showCompanyBranding && (
           <div className="lg:w-1/2 space-y-8 animate-in fade-in slide-in-from-left-8 duration-700">
             <div className="inline-flex items-center gap-2 bg-indigo-100 text-indigo-700 py-1 px-4 rounded-full text-xs font-bold uppercase tracking-wider">
               <ShieldCheck size={14} /> Serene for Enterprise
@@ -60,7 +75,7 @@ const Login: React.FC = () => {
           </div>
         )}
 
-        <div className={role === 'company' ? 'lg:w-1/2 w-full max-w-md' : 'w-full'}>
+        <div className={showCompanyBranding ? 'lg:w-1/2 w-full max-w-md' : 'w-full'}>
           <div className="text-center">
             <div className="mx-auto h-12 w-12 bg-emerald-400 rounded-lg flex items-center justify-center">
               <div className="w-6 h-6 bg-white rounded-sm transform rotate-45"></div>
@@ -75,6 +90,11 @@ const Login: React.FC = () => {
           </div>
 
           <Card className="p-8">
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {error}
+              </div>
+            )}
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div>
                 <Input
@@ -84,6 +104,7 @@ const Login: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
+                  disabled={loading}
                 />
               </div>
 
@@ -92,22 +113,11 @@ const Login: React.FC = () => {
                   label="Password"
                   type="password"
                   required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  disabled={loading}
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">I am a...</label>
-                <select
-                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm py-2 px-3 border"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as User['role'])}
-                >
-                  <option value="user">Individual</option>
-                  <option value="expert">Wellbeing Expert</option>
-                  <option value="company">Company Rep</option>
-                  <option value="super_admin">Super Admin</option>
-                </select>
               </div>
 
               <div className="flex items-center justify-between">
@@ -130,8 +140,8 @@ const Login: React.FC = () => {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-12">
-                Sign in
+              <Button type="submit" className="w-full h-12" disabled={loading}>
+                {loading ? 'Signing in...' : 'Sign in'}
               </Button>
             </form>
 
@@ -144,9 +154,9 @@ const Login: React.FC = () => {
               </div>
             </div>
 
-            <Button variant="outline" className="w-full flex justify-center gap-3 py-6 rounded-xl border-gray-200 hover:border-emerald-200 transition-all font-bold" onClick={handleGoogleLogin}>
+            <Button variant="outline" className="w-full flex justify-center gap-3 py-6 rounded-xl border-gray-200 hover:border-emerald-200 transition-all font-bold" onClick={handleGoogleLogin} disabled={loading}>
               <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="" />
-              Sign in with Google
+              {loading ? 'Signing in...' : 'Sign in with Google'}
             </Button>
           </Card>
         </div>
