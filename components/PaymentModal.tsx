@@ -134,8 +134,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                                                 if (!data.success) throw new Error('Order creation failed');
 
                                                 // 2. Open Razorpay
+                                                const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_1234567890';
                                                 const options = {
-                                                    key: "rzp_test_1234567890", // Replace with env var in real app
+                                                    key: razorpayKey,
                                                     amount: data.order.amount,
                                                     currency: data.order.currency,
                                                     name: "Serene Wellbeing",
