@@ -127,7 +127,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
-      navigate('/');
+      // Use replace to prevent back button from going to authenticated pages
+      navigate('/', { replace: true });
     }
   };
 
