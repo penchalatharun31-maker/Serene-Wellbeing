@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Card, Button, Input } from './UI';
 import { X, CreditCard, Smartphone, CheckCircle, ShieldCheck } from 'lucide-react';
+import apiClient from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -10,6 +12,7 @@ interface PaymentModalProps {
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, currency = 'INR' }) => {
+    const { user } = useAuth();
     const [step, setStep] = useState<'select' | 'details' | 'processing' | 'success'>('select');
     const [method, setMethod] = useState<'card' | 'upi' | null>(null);
     const [selectedPack, setSelectedPack] = useState<{ credits: number, price: number } | null>(null);
@@ -119,22 +122,21 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                                         <Button className="w-full" onClick={async () => {
                                             if (!selectedPack) return;
                                             try {
-                                                const token = localStorage.getItem('token');
-                                                // 1. Create Order
-                                                const res = await fetch('http://localhost:5000/api/payments/create-razorpay-order', {
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'Content-Type': 'application/json',
-                                                        'Authorization': `Bearer ${token}`
-                                                    },
-                                                    body: JSON.stringify({ amount: selectedPack.price, currency: currency || 'INR' })
-                                                });
-                                                const data = await res.json();
+                                                // 1. Create Order using apiClient
+                                                const data = await apiClient.post('/payments/create-razorpay-order', {
+                                                    amount: selectedPack.price,
+                                                    currency: currency || 'INR'
+                                                }).then(res => res.data);
 
                                                 if (!data.success) throw new Error('Order creation failed');
 
                                                 // 2. Open Razorpay
-                                                const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_1234567890';
+                                                const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+                                                if (!razorpayKey) {
+                                                    throw new Error('Razorpay configuration missing');
+                                                }
+
                                                 const options = {
                                                     key: razorpayKey,
                                                     amount: data.order.amount,
@@ -148,9 +150,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                                                         handlePay(); // Transition UI to success
                                                     },
                                                     prefill: {
-                                                        name: "User Name",
-                                                        email: "user@example.com",
-                                                        contact: "9999999999"
+                                                        name: user?.name || '',
+                                                        email: user?.email || '',
+                                                        contact: ''
                                                     },
                                                     theme: { color: "#10B981" }
                                                 };
