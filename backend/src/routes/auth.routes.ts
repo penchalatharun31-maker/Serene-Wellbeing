@@ -12,6 +12,11 @@ import {
   verifyEmail,
   updatePreferences,
 } from '../controllers/auth.controller';
+import {
+  getGoogleAuthUrl,
+  handleGoogleCallback,
+  verifyGoogleToken,
+} from '../controllers/googleAuth.controller';
 import { protect } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { authLimiter, passwordResetLimiter } from '../middleware/rateLimiter';
@@ -47,6 +52,11 @@ router.post('/register', authLimiter, validate(registerValidation), register);
 router.post('/login', authLimiter, validate(loginValidation), login);
 router.post('/forgot-password', passwordResetLimiter, forgotPassword);
 router.post('/reset-password', passwordResetLimiter, resetPassword);
+
+// Google OAuth routes
+router.get('/google', getGoogleAuthUrl); // Get Google OAuth URL
+router.get('/google/callback', handleGoogleCallback); // Handle Google callback
+router.post('/google/verify', verifyGoogleToken); // Verify Google ID token
 
 // Protected routes
 router.use(protect);

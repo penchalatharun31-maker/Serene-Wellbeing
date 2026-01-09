@@ -35,16 +35,19 @@ const Signup: React.FC = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      await login('guest@google.com', 'password123', true); // Use noNavigate
-      if (role === 'company') {
-        navigate('/company-onboarding');
-      } else if (role === 'expert') {
-        navigate('/expert-onboarding');
+      // Get Google OAuth URL from backend with role parameter
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+      const response = await fetch(`${apiUrl}/auth/google?role=${role}`);
+      const data = await response.json();
+
+      if (data.success && data.authUrl) {
+        // Redirect to Google OAuth page
+        window.location.href = data.authUrl;
       } else {
-        navigate(`/dashboard/${role}`);
+        throw new Error('Failed to initiate Google signup');
       }
     } catch (e) {
-      console.error(e);
+      console.error('Google signup error:', e);
     }
   };
 

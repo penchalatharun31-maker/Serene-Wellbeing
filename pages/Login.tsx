@@ -35,11 +35,20 @@ const Login: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      // AuthContext handles automatic redirect based on user's role from backend
-      await login('guest@google.com', 'password123');
+
+      // Get Google OAuth URL from backend
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+      const response = await fetch(`${apiUrl}/auth/google?role=user`);
+      const data = await response.json();
+
+      if (data.success && data.authUrl) {
+        // Redirect to Google OAuth page
+        window.location.href = data.authUrl;
+      } else {
+        throw new Error('Failed to initiate Google login');
+      }
     } catch (e: any) {
       setError(e.message || 'Google login failed');
-    } finally {
       setLoading(false);
     }
   };
