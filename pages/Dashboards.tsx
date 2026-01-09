@@ -266,55 +266,59 @@ export const UserSessions: React.FC = () => {
     );
 };
 
-export const UserSettings: React.FC = () => (
-    <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+export const UserSettings: React.FC = () => {
+    const { user } = useAuth();
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
-                <Card className="p-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Personal Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input label="Full Name" defaultValue="Sarah Johnson" />
-                        <Input label="Email" defaultValue="sarah@example.com" />
-                        <Input label="Phone Number" defaultValue="+1 (555) 000-0000" />
-                        <Input label="Location" defaultValue="San Francisco, CA" />
-                    </div>
-                    <div className="mt-6 flex justify-end">
-                        <Button>Save Changes</Button>
-                    </div>
-                </Card>
+    return (
+        <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
 
-                <Card className="p-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Notifications</h3>
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-900">Email Notifications</p>
-                                <p className="text-xs text-gray-500">Receive updates about your sessions.</p>
-                            </div>
-                            <input type="checkbox" className="toggle text-emerald-500" defaultChecked />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-6">
+                    <Card className="p-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Personal Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input label="Full Name" defaultValue={user?.name || ''} />
+                            <Input label="Email" defaultValue={user?.email || ''} />
+                            <Input label="Phone Number" defaultValue={''} />
+                            <Input label="Location" defaultValue={user?.country || ''} />
                         </div>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-900">SMS Reminders</p>
-                                <p className="text-xs text-gray-500">Get text alerts 15 minutes before sessions.</p>
-                            </div>
-                            <input type="checkbox" className="toggle text-emerald-500" />
+                        <div className="mt-6 flex justify-end">
+                            <Button>Save Changes</Button>
                         </div>
-                    </div>
-                </Card>
-            </div>
+                    </Card>
 
-            <div className="space-y-6">
-                <Card className="p-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Profile Picture</h3>
-                    <ImageUpload />
-                </Card>
+                    <Card className="p-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Notifications</h3>
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-900">Email Notifications</p>
+                                    <p className="text-xs text-gray-500">Receive updates about your sessions.</p>
+                                </div>
+                                <input type="checkbox" className="toggle text-emerald-500" defaultChecked />
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-900">SMS Reminders</p>
+                                    <p className="text-xs text-gray-500">Get text alerts 15 minutes before sessions.</p>
+                                </div>
+                                <input type="checkbox" className="toggle text-emerald-500" />
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+
+                <div className="space-y-6">
+                    <Card className="p-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Profile Picture</h3>
+                        <ImageUpload />
+                    </Card>
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 // --- EXPERT DASHBOARD VIEWS ---
 
