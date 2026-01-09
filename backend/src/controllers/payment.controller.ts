@@ -249,7 +249,53 @@ export const confirmCreditPurchase = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { paymentIntentId } = req.body;
+    const { paymentIntentId, razorpay_payment_id, credits, amount } = req.body;
+
+    // Handle Razorpay payment confirmation
+    if (razorpay_payment_id) {
+      if (!credits || !amount) {
+        throw new AppError('Credits and amount are required for Razorpay payments', 400);
+      }
+
+      // Update user credits
+      const user = await User.findById(req.user!._id);
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      user.credits += credits;
+      await user.save();
+
+      // Create transaction record
+      await Transaction.create({
+        userId: user._id,
+        type: 'credit_purchase',
+        amount: amount,
+        currency: 'INR',
+        status: 'completed',
+        paymentMethod: 'razorpay',
+        stripeChargeId: razorpay_payment_id, // Reusing field for Razorpay payment ID
+        metadata: {
+          description: `Purchased ${credits} credits via Razorpay`,
+          razorpay_payment_id: razorpay_payment_id,
+        },
+        processedAt: new Date(),
+      });
+
+      logger.info(`Credits added successfully for user ${user._id}: ${credits} credits`);
+
+      res.status(200).json({
+        success: true,
+        message: 'Credits purchased successfully',
+        credits: user.credits,
+      });
+      return;
+    }
+
+    // Handle Stripe payment confirmation (legacy)
+    if (!paymentIntentId) {
+      throw new AppError('Payment information required', 400);
+    }
 
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
@@ -257,7 +303,7 @@ export const confirmCreditPurchase = async (
       throw new AppError('Payment not successful', 400);
     }
 
-    const credits = parseInt(paymentIntent.metadata.credits);
+    const stripeCredits = parseInt(paymentIntent.metadata.credits);
 
     // Update user credits
     const user = await User.findById(req.user!._id);
@@ -265,7 +311,7 @@ export const confirmCreditPurchase = async (
       throw new AppError('User not found', 404);
     }
 
-    user.credits += credits;
+    user.credits += stripeCredits;
     await user.save();
 
     // Create transaction record
@@ -278,7 +324,7 @@ export const confirmCreditPurchase = async (
       paymentMethod: 'card',
       stripeChargeId: paymentIntent.id,
       metadata: {
-        description: `Purchased ${credits} credits`,
+        description: `Purchased ${stripeCredits} credits`,
       },
       processedAt: new Date(),
     });

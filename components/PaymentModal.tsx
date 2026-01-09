@@ -32,13 +32,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         setStep('select');
     };
 
-    const handlePay = () => {
-        setStep('processing');
-        setTimeout(() => {
-            setStep('success');
-        }, 2000);
-    };
-
     const handleFinish = () => {
         if (selectedPack) onSuccess(selectedPack.credits);
         setStep('select');
@@ -144,10 +137,30 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                                                     name: "Serene Wellbeing",
                                                     description: "Credits Topup",
                                                     order_id: data.order.id,
-                                                    handler: function (response: any) {
-                                                        // 3. Handle Success
-                                                        console.log("Payment Successful", response);
-                                                        handlePay(); // Transition UI to success
+                                                    handler: async function (response: any) {
+                                                        try {
+                                                            setStep('processing');
+
+                                                            // Verify payment with backend
+                                                            await apiClient.post('/payments/verify', {
+                                                                razorpay_order_id: response.razorpay_order_id,
+                                                                razorpay_payment_id: response.razorpay_payment_id,
+                                                                razorpay_signature: response.razorpay_signature,
+                                                            });
+
+                                                            // Update user credits in backend
+                                                            await apiClient.post('/payments/credits/confirm', {
+                                                                razorpay_payment_id: response.razorpay_payment_id,
+                                                                credits: selectedPack?.credits,
+                                                                amount: selectedPack?.price,
+                                                            });
+
+                                                            setStep('success');
+                                                        } catch (err) {
+                                                            console.error('Payment verification failed:', err);
+                                                            alert('Payment verification failed. Please contact support.');
+                                                            setStep('select');
+                                                        }
                                                     },
                                                     prefill: {
                                                         name: user?.name || '',
@@ -168,17 +181,79 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    <Input label="Card Number" placeholder="0000 0000 0000 0000" required />
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <Input label="Expiry Date" placeholder="MM/YY" required />
-                                        <Input label="CVV" placeholder="***" type="password" required />
+                                    <div className="bg-blue-50 p-4 rounded-xl flex items-center gap-3 border border-blue-100">
+                                        <CreditCard className="text-blue-600" />
+                                        <p className="text-sm text-gray-700 font-medium">Pay via Card</p>
                                     </div>
-                                    <Input label="Name on Card" placeholder="SARAH JOHNSON" required />
-                                    <div className="pt-4 text-center">
-                                        <p className="text-xs text-gray-500 mb-4 flex items-center justify-center gap-1">
-                                            <ShieldCheck size={14} className="text-emerald-500" /> Your card data is encrypted and secure
+                                    <div className="pt-4">
+                                        <p className="text-xs text-center text-gray-500 mb-4 flex items-center justify-center gap-1">
+                                            <ShieldCheck size={14} className="text-emerald-500" /> Secure payment via Razorpay
                                         </p>
-                                        <Button className="w-full" onClick={handlePay}>Pay {currencySymbol}{selectedPack?.price}</Button>
+                                        <Button className="w-full" onClick={async () => {
+                                            if (!selectedPack) return;
+                                            try {
+                                                // 1. Create Order using apiClient
+                                                const data = await apiClient.post('/payments/create-razorpay-order', {
+                                                    amount: selectedPack.price,
+                                                    currency: currency || 'INR'
+                                                }).then(res => res.data);
+
+                                                if (!data.success) throw new Error('Order creation failed');
+
+                                                // 2. Open Razorpay
+                                                const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+                                                if (!razorpayKey) {
+                                                    throw new Error('Razorpay configuration missing');
+                                                }
+
+                                                const options = {
+                                                    key: razorpayKey,
+                                                    amount: data.order.amount,
+                                                    currency: data.order.currency,
+                                                    name: "Serene Wellbeing",
+                                                    description: "Credits Topup",
+                                                    order_id: data.order.id,
+                                                    handler: async function (response: any) {
+                                                        try {
+                                                            setStep('processing');
+
+                                                            // Verify payment with backend
+                                                            await apiClient.post('/payments/verify', {
+                                                                razorpay_order_id: response.razorpay_order_id,
+                                                                razorpay_payment_id: response.razorpay_payment_id,
+                                                                razorpay_signature: response.razorpay_signature,
+                                                            });
+
+                                                            // Update user credits in backend
+                                                            await apiClient.post('/payments/credits/confirm', {
+                                                                razorpay_payment_id: response.razorpay_payment_id,
+                                                                credits: selectedPack?.credits,
+                                                                amount: selectedPack?.price,
+                                                            });
+
+                                                            setStep('success');
+                                                        } catch (err) {
+                                                            console.error('Payment verification failed:', err);
+                                                            alert('Payment verification failed. Please contact support.');
+                                                            setStep('select');
+                                                        }
+                                                    },
+                                                    prefill: {
+                                                        name: user?.name || '',
+                                                        email: user?.email || '',
+                                                        contact: ''
+                                                    },
+                                                    theme: { color: "#10B981" }
+                                                };
+
+                                                const rzp1 = new (window as any).Razorpay(options);
+                                                rzp1.open();
+                                            } catch (err) {
+                                                console.error("Payment failed", err);
+                                                alert("Payment initialization failed");
+                                            }
+                                        }}>Pay with Card</Button>
                                     </div>
                                 </div>
                             )}
