@@ -36,6 +36,7 @@ import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
 import { VideoSession } from './pages/VideoSession';
 import Pricing from './frontend/src/pages/Pricing';
+import RazorpayDiagnostics from './components/RazorpayDiagnostics';
 
 // Layout wrapper for dashboard pages to include Sidebar
 const DashboardLayout: React.FC<{ type: 'user' | 'expert' | 'company' | 'super_admin' }> = ({ type }) => (
@@ -90,9 +91,9 @@ const App: React.FC = () => {
                         <Route path="/referrals" element={<Referrals />} />
                         <Route path="/rate-session" element={<RateSession />} />
                         <Route path="/commission-split" element={<CommissionSplit />} />
-                        <Route path="/commission-split" element={<CommissionSplit />} />
                         <Route path="/invoice/:id" element={<Invoice />} />
                         <Route path="/session/:sessionId/video" element={<ProtectedRoute><VideoSession /></ProtectedRoute>} />
+                        <Route path="/diagnostics/razorpay" element={<ProtectedRoute><RazorpayDiagnostics /></ProtectedRoute>} />
                     </Route>
 
                     {/* Protected User Dashboard Routes - Only accessible to 'user' role */}
