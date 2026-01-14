@@ -37,12 +37,15 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
       const data = await response.json();
       const slots = data.availableSlots || [];
 
-      // If no slots available, generate default slots for demo/testing
-      if (slots.length === 0) {
+      // Filter past time slots for today
+      const filteredSlots = filterPastTimeSlots(slots, selectedDate);
+
+      // If no slots available after filtering, generate default slots for demo/testing
+      if (filteredSlots.length === 0 && slots.length === 0) {
         const defaultSlots = generateDefaultTimeSlots();
         setAvailableSlots(defaultSlots);
       } else {
-        setAvailableSlots(slots);
+        setAvailableSlots(filteredSlots);
       }
     } catch (err) {
       console.error('Error fetching time slots:', err);
@@ -61,7 +64,45 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
     for (let hour = 9; hour <= 17; hour++) {
       slots.push(`${String(hour).padStart(2, '0')}:00`);
     }
-    return slots;
+
+    // Filter out past time slots if selected date is today
+    const filteredSlots = filterPastTimeSlots(slots, selectedDate);
+    return filteredSlots;
+  };
+
+  const filterPastTimeSlots = (slots: string[], dateString: string): string[] => {
+    // Check if selected date is today
+    const selectedDateObj = new Date(dateString);
+    const today = new Date();
+
+    // Reset time to compare only dates
+    selectedDateObj.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    // If selected date is not today, return all slots
+    if (selectedDateObj.getTime() !== today.getTime()) {
+      return slots;
+    }
+
+    // If selected date is today, filter out past slots
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    return slots.filter((slot) => {
+      const [slotHour, slotMinute] = slot.split(':').map(Number);
+
+      // Keep slots that are in the future (with 30 min buffer for booking)
+      if (slotHour > currentHour) {
+        return true;
+      }
+
+      if (slotHour === currentHour) {
+        return slotMinute > currentMinute + 30;
+      }
+
+      return false;
+    });
   };
 
   useEffect(() => {
