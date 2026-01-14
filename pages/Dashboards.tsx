@@ -5,7 +5,7 @@ import { Activity, BadgeCheck, BarChart2, Calendar, CheckCircle, ChevronRight, C
 import apiClient from '../services/api';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { PaymentModal } from '../components/PaymentModal';
 import { expertService } from '../services/expert.service';
 import { sessionService } from '../services/session.service';
@@ -88,26 +88,39 @@ const SessionRow: React.FC<{ session: any; isPast?: boolean }> = ({ session, isP
 export const UserDashboard: React.FC = () => {
     const { user, updateUser } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [upcomingSessions, setUpcomingSessions] = useState<any[]>([]);
     const [loadingSessions, setLoadingSessions] = useState(true);
 
-    useEffect(() => {
-        const fetchUpcomingSessions = async () => {
-            try {
-                setLoadingSessions(true);
-                const response = await sessionService.getUpcomingSessions();
-                if (response.success && response.data) {
-                    setUpcomingSessions(response.data.slice(0, 3)); // Show only first 3 on dashboard
-                }
-            } catch (error) {
-                console.error('Error fetching upcoming sessions:', error);
-            } finally {
-                setLoadingSessions(false);
+    const fetchUpcomingSessions = async () => {
+        try {
+            setLoadingSessions(true);
+            const response = await sessionService.getUpcomingSessions();
+            if (response.success && response.data) {
+                setUpcomingSessions(response.data.slice(0, 3)); // Show only first 3 on dashboard
             }
-        };
+        } catch (error) {
+            console.error('Error fetching upcoming sessions:', error);
+            setUpcomingSessions([]); // Set empty array on error to prevent UI issues
+        } finally {
+            setLoadingSessions(false);
+        }
+    };
+
+    useEffect(() => {
         fetchUpcomingSessions();
-    }, []);
+
+        // Check if redirected from booking
+        const params = new URLSearchParams(location.search);
+        if (params.get('refresh') === 'true') {
+            // Remove refresh param from URL
+            const newSearch = new URLSearchParams(location.search);
+            newSearch.delete('refresh');
+            const newPath = newSearch.toString() ? `?${newSearch.toString()}` : '';
+            navigate(`${location.pathname}${newPath}`, { replace: true });
+        }
+    }, [location.search]); // Refetch when URL params change
 
     const handleTopUpSuccess = (credits: number) => {
         if (user) {

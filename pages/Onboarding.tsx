@@ -468,7 +468,7 @@ const Step6Booking = ({ navigate, selectedExpert, userRole }: any) => {
         // Always use 'user' for B2C onboarding flow (regular customers)
         const actualRole = user?.role || 'user';
         console.log('[Onboarding] Navigating to dashboard:', { actualRole, user });
-        const dashboardRoute = `/dashboard/user`; // Force user dashboard for B2C customers
+        const dashboardRoute = `/dashboard/user?refresh=true`; // Force user dashboard with refresh
         navigate(dashboardRoute);
     };
 

@@ -46,8 +46,9 @@ const ExpertProfile: React.FC = () => {
 
     const handleBookingSuccess = () => {
         setIsBookingOpen(false);
-        // Redirect to user's sessions page or show success message
-        navigate('/dashboard/user/sessions');
+        // Redirect to user's dashboard with refresh parameter
+        // This triggers the session list to refetch and show the new booking
+        navigate('/dashboard/user?refresh=true');
     };
 
     if (loading) {
