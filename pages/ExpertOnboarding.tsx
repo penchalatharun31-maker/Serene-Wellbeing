@@ -7,7 +7,7 @@ import {
     Target, Heart, Users, ShieldAlert, Award, MessageCircle,
     Smartphone, Activity, Search, Languages, HelpCircle, Clock
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { expertService } from '../services/expert.service';
 
 // --- Sub-Components moved outside to fix focus bug ---
 
@@ -286,7 +286,7 @@ const Step6Logistics = ({ formData, setFormData, nextStep, prevStep }: any) => (
     </div>
 );
 
-const Step7Review = ({ formData, nextStep, prevStep }: any) => (
+const Step7Review = ({ formData, nextStep, prevStep, onSubmit, submitLoading, submitError }: any) => (
     <div className="max-w-2xl mx-auto space-y-10">
         <div className="text-center space-y-2">
             <Badge color="emerald">Step 7: Final Look</Badge>
@@ -332,16 +332,24 @@ const Step7Review = ({ formData, nextStep, prevStep }: any) => (
                                 <span className="text-emerald-700 font-bold">Standard Session</span>
                                 <span className="text-2xl font-black text-emerald-800">{getCurrencySymbol(formData.currency)}{formData.rate || '0'}</span>
                             </div>
-                            <Button className="w-full bg-emerald-600">Proceed to Submit</Button>
+                            <Button className="w-full bg-emerald-600" onClick={onSubmit} disabled={submitLoading}>
+                                {submitLoading ? 'Submitting...' : 'Proceed to Submit'}
+                            </Button>
                         </div>
                     </div>
                 </div>
             </div>
         </Card>
 
+        {submitError && (
+            <div className="text-center text-red-500 text-sm font-medium">{submitError}</div>
+        )}
+
         <div className="flex justify-center gap-4">
             <Button variant="ghost" onClick={prevStep}>Make Changes</Button>
-            <Button size="lg" className="px-12 bg-gray-900" onClick={nextStep}>Submit for Approval <CheckCircle size={20} className="ml-2" /></Button>
+            <Button size="lg" className="px-12 bg-gray-900" onClick={onSubmit} disabled={submitLoading}>
+                {submitLoading ? 'Submitting...' : <><span>Submit for Approval</span> <CheckCircle size={20} className="ml-2" /></>}
+            </Button>
         </div>
     </div>
 );
@@ -382,8 +390,9 @@ const Step8Approval = ({ handleFinish }: any) => (
 
 const ExpertOnboarding: React.FC = () => {
     const navigate = useNavigate();
-    const { signup } = useAuth();
     const [step, setStep] = useState(1);
+    const [submitLoading, setSubmitLoading] = useState(false);
+    const [submitError, setSubmitError] = useState('');
     const [formData, setFormData] = useState<any>({
         // Step 1
         name: '', email: '', phone: '', city: '', category: 'Life Coach', country: 'India', currency: 'INR',
@@ -403,13 +412,32 @@ const ExpertOnboarding: React.FC = () => {
     const nextStep = () => setStep(s => Math.min(s + 1, totalSteps));
     const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
-    const handleFinish = async () => {
+    const handleSubmitProfile = async () => {
+        setSubmitLoading(true);
+        setSubmitError('');
         try {
-            await signup(formData.name || 'New Expert', formData.email || 'expert@serene.com', 'password123', 'expert', formData.country, formData.currency);
-            navigate('/dashboard/expert');
-        } catch (e) {
-            console.error(e);
+            const profileData = {
+                title: formData.category,
+                specialization: [formData.category],
+                bio: formData.bio || 'Professional wellness expert dedicated to helping clients achieve their goals.',
+                experience: parseInt(formData.experience, 10) || 0,
+                hourlyRate: parseFloat(formData.rate) || 1000,
+                languages: formData.languages && formData.languages.length > 0 ? formData.languages : ['English'],
+                country: formData.country,
+                currency: formData.currency,
+            };
+            await expertService.createExpertProfile(profileData);
+            setStep(8);
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || err?.message || 'Submission failed. Please try again.';
+            setSubmitError(msg);
+        } finally {
+            setSubmitLoading(false);
         }
+    };
+
+    const handleFinish = () => {
+        navigate('/dashboard/expert');
     };
 
     return (
@@ -445,7 +473,7 @@ const ExpertOnboarding: React.FC = () => {
                     {step === 4 && <Step4Story formData={formData} setFormData={setFormData} nextStep={nextStep} prevStep={prevStep} />}
                     {step === 5 && <Step5Video nextStep={nextStep} />}
                     {step === 6 && <Step6Logistics formData={formData} setFormData={setFormData} nextStep={nextStep} prevStep={prevStep} />}
-                    {step === 7 && <Step7Review formData={formData} nextStep={nextStep} prevStep={prevStep} />}
+                    {step === 7 && <Step7Review formData={formData} nextStep={nextStep} prevStep={prevStep} onSubmit={handleSubmitProfile} submitLoading={submitLoading} submitError={submitError} />}
                     {step === 8 && <Step8Approval handleFinish={handleFinish} />}
                 </div>
             </main>

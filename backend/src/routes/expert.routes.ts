@@ -33,8 +33,8 @@ const createExpertValidation = [
     .isInt({ min: 0 })
     .withMessage('Experience must be a positive number'),
   body('hourlyRate')
-    .isFloat({ min: 10, max: 1000 })
-    .withMessage('Hourly rate must be between $10 and $1000'),
+    .isFloat({ min: 1 })
+    .withMessage('Hourly rate must be a positive number'),
 ];
 
 // Public routes (with optional auth)
