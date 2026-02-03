@@ -19,9 +19,8 @@ const CompanyOnboarding: React.FC = () => {
     const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
     const handleFinish = async () => {
-        // Mock B2B Login
         try {
-            await login(formData.workEmail || 'hr@company.com', 'password123');
+            await login(formData.workEmail || 'hr@company.com', 'password123', true);
             navigate('/dashboard/company');
         } catch (e) {
             console.error(e);

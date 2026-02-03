@@ -44,8 +44,8 @@ router.use(protect);
 router.post('/', validate(createEntryValidation), createJournalEntry);
 router.get('/', getJournalEntries);
 router.get('/:id', getJournalEntry);
+router.put('/:id/favorite', toggleFavorite);
 router.put('/:id', validate(createEntryValidation), updateJournalEntry);
 router.delete('/:id', deleteJournalEntry);
-router.put('/:id/favorite', toggleFavorite);
 
 export default router;

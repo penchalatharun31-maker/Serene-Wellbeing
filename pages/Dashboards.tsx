@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { PaymentModal } from '../components/PaymentModal';
 import { expertService } from '../services/expert.service';
+import apiClient from '../services/api';
 
 // --- Shared Components ---
 
@@ -378,11 +379,37 @@ export const ExpertDashboard: React.FC = () => {
 };
 
 export const ExpertBookings: React.FC = () => {
-    const bookings = [
-        { id: 1, name: "Alice Freeman", type: "Initial Consultation", date: "Today, 2:00 PM", status: "pending" },
-        { id: 2, name: "Bob Smith", type: "Mindfulness Session", date: "Tomorrow, 10:00 AM", status: "confirmed" },
-        { id: 3, name: "Charlie Davis", type: "Therapy Session", date: "Jul 15, 4:00 PM", status: "confirmed" }
-    ];
+    const navigate = useNavigate();
+    const [bookings, setBookings] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    React.useEffect(() => {
+        const fetch = async () => {
+            try {
+                const res = await apiClient.get('/sessions/expert/all');
+                setBookings(res.data?.sessions || []);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetch();
+    }, []);
+
+    const handleStatusChange = async (id: string, status: string) => {
+        try {
+            await apiClient.put(`/sessions/${id}`, { status });
+            setBookings(prev => prev.map(b => b._id === id ? { ...b, status } : b));
+        } catch (e: any) {
+            console.error('Failed to update session:', e.message);
+        }
+    };
+
+    const formatDate = (dateStr: string) => {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    };
 
     return (
         <div className="space-y-6">
@@ -391,28 +418,33 @@ export const ExpertBookings: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="p-6 lg:col-span-2">
                     <h3 className="font-bold text-gray-900 mb-4">All Bookings</h3>
+                    {loading && <p className="text-sm text-gray-400">Loading bookings...</p>}
+                    {!loading && bookings.length === 0 && <p className="text-sm text-gray-400">No bookings yet.</p>}
                     <div className="space-y-4">
-                        {bookings.map(booking => (
-                            <div key={booking.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl">
-                                <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold">
-                                        {booking.name.charAt(0)}
+                        {bookings.map((booking: any) => {
+                            const userName = booking.userId?.name || 'Client';
+                            return (
+                                <div key={booking._id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold">
+                                            {userName.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-900">{userName}</h4>
+                                            <p className="text-sm text-gray-500">{booking.duration}min • {booking.scheduledDate && formatDate(booking.scheduledDate)} {booking.scheduledTime || ''}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 className="font-bold text-gray-900">{booking.name}</h4>
-                                        <p className="text-sm text-gray-500">{booking.type} • {booking.date}</p>
-                                    </div>
+                                    {booking.status === 'pending' ? (
+                                        <div className="flex gap-2">
+                                            <Button size="sm" variant="secondary" onClick={() => handleStatusChange(booking._id, 'confirmed')}><CheckCircle size={16} className="mr-1" /> Accept</Button>
+                                            <Button size="sm" variant="ghost" onClick={() => handleStatusChange(booking._id, 'cancelled')}><XCircle size={16} className="mr-1" /> Decline</Button>
+                                        </div>
+                                    ) : (
+                                        <Badge color={booking.status === 'confirmed' ? 'emerald' : 'orange'}>{booking.status}</Badge>
+                                    )}
                                 </div>
-                                {booking.status === 'pending' ? (
-                                    <div className="flex gap-2">
-                                        <Button size="sm" variant="secondary"><CheckCircle size={16} className="mr-1" /> Accept</Button>
-                                        <Button size="sm" variant="ghost"><XCircle size={16} className="mr-1" /> Decline</Button>
-                                    </div>
-                                ) : (
-                                    <Badge color="emerald">Confirmed</Badge>
-                                )}
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </Card>
 
@@ -421,7 +453,7 @@ export const ExpertBookings: React.FC = () => {
                         <h3 className="font-bold text-gray-900 mb-4">Quick Actions</h3>
                         <div className="space-y-3">
                             <Button variant="outline" className="w-full justify-start"><Calendar size={16} className="mr-2" /> Sync Calendar</Button>
-                            <Button variant="outline" className="w-full justify-start"><Clock size={16} className="mr-2" /> Update Availability</Button>
+                            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/dashboard/expert/availability')}><Clock size={16} className="mr-2" /> Update Availability</Button>
                         </div>
                     </Card>
                 </div>
@@ -434,6 +466,7 @@ export const ExpertAvailability: React.FC = () => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const hours = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
     const [selectedSlots, setSelectedSlots] = useState<string[]>(['Mon-9:00 AM', 'Mon-10:00 AM', 'Tue-10:00 AM']);
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
     const toggleSlot = (day: string, hour: string) => {
         const key = `${day}-${hour}`;
@@ -444,13 +477,49 @@ export const ExpertAvailability: React.FC = () => {
         }
     };
 
+    const parse12to24 = (time12: string): string => {
+        const [timePart, period] = time12.split(' ');
+        let [h, m] = timePart.split(':').map(Number);
+        if (period === 'PM' && h !== 12) h += 12;
+        if (period === 'AM' && h === 12) h = 0;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
+    const handleSave = async () => {
+        setSaveStatus('saving');
+        try {
+            const dayMap: Record<string, string> = { Mon: 'monday', Tue: 'tuesday', Wed: 'wednesday', Thu: 'thursday', Fri: 'friday', Sat: 'saturday', Sun: 'sunday' };
+            const availability: Record<string, Array<{ start: string; end: string }>> = {
+                monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: []
+            };
+            selectedSlots.forEach(slot => {
+                const [day, ...rest] = slot.split('-');
+                const time12 = rest.join('-');
+                const start = parse12to24(time12);
+                const [h, m] = start.split(':').map(Number);
+                const endH = h + 1;
+                const end = `${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                const dayKey = dayMap[day];
+                if (dayKey) availability[dayKey].push({ start, end });
+            });
+            await apiClient.put('/experts/my-availability', { availability });
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus('idle'), 2000);
+        } catch (e) {
+            setSaveStatus('error');
+            setTimeout(() => setSaveStatus('idle'), 3000);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-900">Availability Management</h1>
                 <div className="flex gap-2">
                     <Button variant="outline">Sync Google Calendar</Button>
-                    <Button>Save Changes</Button>
+                    <Button onClick={handleSave} disabled={saveStatus === 'saving'}>
+                        {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : saveStatus === 'error' ? 'Failed' : 'Save Changes'}
+                    </Button>
                 </div>
             </div>
 

@@ -4,6 +4,7 @@ import { Expert } from '../types';
 import { Button } from './UI';
 import { CalendarPicker } from './CalendarPicker';
 import { TimeSlotPicker } from './TimeSlotPicker';
+import apiClient from '../services/api';
 
 interface BookSessionModalProps {
   expert: Expert;
@@ -40,8 +41,6 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
 
     try {
       setError(null);
-      const token = localStorage.getItem('auth_token');
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
       // Calculate price based on duration
       const hourlyRate = expert.price;
@@ -54,24 +53,12 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
       const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
 
       // 1. Create Razorpay order
-      const orderResponse = await fetch(`${API_BASE_URL}/api/v1/payments/create-order`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          amount: price,
-          currency: expert.currency || 'INR',
-        }),
+      const orderRes = await apiClient.post('/payments/create-razorpay-order', {
+        amount: price,
+        currency: expert.currency || 'INR',
       });
 
-      if (!orderResponse.ok) {
-        const errorData = await orderResponse.json();
-        throw new Error(errorData.message || 'Failed to create payment order');
-      }
-
-      const orderData = await orderResponse.json();
+      const orderData = orderRes.data;
 
       // 2. Open Razorpay checkout
       const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_1234567890';
@@ -87,55 +74,31 @@ export const BookSessionModal: React.FC<BookSessionModalProps> = ({
           try {
             setStep('processing');
 
-            // 3. Verify payment
-            const verifyResponse = await fetch(`${API_BASE_URL}/api/v1/payments/verify`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
+            // 3. Verify payment signature
+            await apiClient.post('/payments/verify', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
             });
-
-            if (!verifyResponse.ok) {
-              throw new Error('Payment verification failed');
-            }
 
             // 4. Create session booking
-            const sessionResponse = await fetch(`${API_BASE_URL}/api/v1/sessions`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                expertId: expert.id,
-                scheduledDate: selectedDate,
-                scheduledTime: selectedTime,
-                endTime: endTime,
-                duration: duration,
-                price: price,
-                currency: expert.currency || 'INR',
-                notes: notes,
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpaySignature: response.razorpay_signature,
-              }),
+            const sessionRes = await apiClient.post('/sessions', {
+              expertId: expert.id,
+              scheduledDate: selectedDate,
+              scheduledTime: selectedTime,
+              endTime: endTime,
+              duration: duration,
+              price: price,
+              currency: expert.currency || 'INR',
+              notes: notes,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
             });
 
-            if (!sessionResponse.ok) {
-              throw new Error('Failed to create session booking');
-            }
-
-            const sessionData = await sessionResponse.json();
-            setSessionId(sessionData.session?._id || sessionData.data?._id);
+            setSessionId(sessionRes.data?.session?._id || sessionRes.data?._id);
             setStep('success');
 
-            // Call onSuccess callback if provided
             if (onSuccess) {
               onSuccess();
             }

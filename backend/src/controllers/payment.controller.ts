@@ -119,6 +119,39 @@ export const createRazorpayOrder = async (req: AuthRequest, res: Response, next:
   }
 };
 
+/**
+ * Verify Razorpay payment signature after checkout
+ * Confirms the payment was genuinely processed by Razorpay
+ */
+export const verifyRazorpayPayment = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      throw new AppError('Missing payment verification fields', 400);
+    }
+
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'secret';
+    const generatedSignature = require('crypto')
+      .createHmac('sha256', keySecret)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (generatedSignature !== razorpay_signature) {
+      throw new AppError('Payment signature verification failed', 400);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment verified successfully',
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const confirmPayment = async (
   req: AuthRequest,
   res: Response,

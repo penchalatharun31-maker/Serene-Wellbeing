@@ -20,7 +20,7 @@ const Signup: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await signup(name, email, password, role, true); // Use noNavigate
+      await signup(name, email, password, role, undefined, undefined, true);
       if (role === 'company') {
         navigate('/company-onboarding');
       } else if (role === 'expert') {
