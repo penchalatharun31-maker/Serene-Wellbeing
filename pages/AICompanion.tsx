@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, Button, Input } from '../components/UI';
 import { MessageCircle, Send, AlertCircle, Heart, Phone, Globe, Clock, Sparkles, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import apiClient from '../services/api';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -53,14 +54,10 @@ export const AICompanion: React.FC = () => {
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch('/api/v1/ai-companion/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input, sessionId })
+      const { data } = await apiClient.post('/ai-companion/chat', {
+        message: input,
+        sessionId,
       });
-
-      const data = await response.json();
 
       if (data.success) {
         const assistantMessage: Message = {
@@ -78,9 +75,9 @@ export const AICompanion: React.FC = () => {
           setShowCrisisResources(true);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat error:', error);
-      // Fallback response
+      // Show fallback response so UI doesn't hang
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: "I'm here to listen. Could you tell me more about what's on your mind?",

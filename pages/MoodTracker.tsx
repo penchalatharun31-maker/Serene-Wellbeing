@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { Smile, Meh, Frown, Calendar, TrendingUp, TrendingDown, Minus, Heart, Zap, Cloud, Sun, Moon, Activity, BarChart3, Lightbulb } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import apiClient from '../services/api';
 
 const MOODS = [
   { value: 'excellent', label: 'Excellent', icon: Sun, color: 'text-yellow-500', bg: 'bg-yellow-50', score: 10 },
@@ -53,6 +54,35 @@ export const MoodTracker: React.FC = () => {
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [moodData, setMoodData] = useState(mockMoodData);
+  const [recentMoods, setRecentMoods] = useState<any[]>([]);
+
+  // Fetch real analytics and recent moods when analytics view is shown
+  useEffect(() => {
+    if (view === 'analytics') {
+      const fetchAnalytics = async () => {
+        try {
+          const [analyticsRes, recentRes] = await Promise.all([
+            apiClient.get('/mood/analytics'),
+            apiClient.get('/mood/recent'),
+          ]);
+          if (analyticsRes.data?.success && analyticsRes.data?.data) {
+            setMoodData(analyticsRes.data.data.weeklyTrend || mockMoodData);
+          }
+          if (recentRes.data?.success && recentRes.data?.data) {
+            setRecentMoods(recentRes.data.data);
+          }
+        } catch (err) {
+          console.error('Failed to fetch mood analytics:', err);
+          // Fall back to mock data
+        }
+      };
+      fetchAnalytics();
+    }
+  }, [view]);
 
   const toggleEmotion = (emotion: string) => {
     setSelectedEmotions(prev =>
@@ -71,20 +101,56 @@ export const MoodTracker: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    const moodData = {
-      mood: selectedMood,
-      moodScore,
-      emotions: selectedEmotions,
-      activities: selectedActivities,
-      energy,
-      stress,
-      sleep: { hours: sleepHours, quality: sleepQuality },
-      notes
-    };
+    if (!selectedMood) {
+      setSubmitError('Please select a mood first');
+      return;
+    }
 
-    console.log('Submitting mood:', moodData);
-    // TODO: API call
-    alert('Mood logged successfully! 🎉 +5 XP');
+    setSubmitLoading(true);
+    setSubmitError(null);
+    setSubmitSuccess(false);
+
+    try {
+      // Map mood labels to backend-accepted values and score to 1-5 range
+      const moodMap: Record<string, string> = {
+        excellent: 'great',
+        good: 'good',
+        okay: 'okay',
+        bad: 'bad',
+        terrible: 'terrible',
+      };
+
+      await apiClient.post('/mood', {
+        mood: moodMap[selectedMood] || selectedMood,
+        moodScore: Math.round(moodScore / 2), // Convert 1-10 to 1-5
+        energy: Math.round(energy / 2),
+        stress: Math.round(stress / 2),
+        emotions: selectedEmotions,
+        activities: selectedActivities,
+        notes: notes || undefined,
+      });
+
+      setSubmitSuccess(true);
+
+      // Reset form
+      setSelectedMood('');
+      setMoodScore(5);
+      setEnergy(5);
+      setStress(5);
+      setSelectedEmotions([]);
+      setSelectedActivities([]);
+      setNotes('');
+
+      // Auto-switch to analytics after 2s
+      setTimeout(() => {
+        setSubmitSuccess(false);
+        setView('analytics');
+      }, 2000);
+    } catch (err: any) {
+      setSubmitError(err.response?.data?.message || 'Failed to save mood entry');
+    } finally {
+      setSubmitLoading(false);
+    }
   };
 
   return (
@@ -286,8 +352,16 @@ export const MoodTracker: React.FC = () => {
               </p>
             </Card>
 
-            <Button onClick={handleSubmit} className="w-full" size="lg">
-              Log Mood Entry
+            {submitError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{submitError}</div>
+            )}
+            {submitSuccess && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700 text-center font-medium">
+                Mood logged successfully! 🎉
+              </div>
+            )}
+            <Button onClick={handleSubmit} disabled={submitLoading} className="w-full" size="lg">
+              {submitLoading ? 'Saving...' : 'Log Mood Entry'}
             </Button>
           </div>
 

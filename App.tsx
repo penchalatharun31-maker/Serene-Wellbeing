@@ -105,6 +105,13 @@ const App: React.FC = () => {
                         <Route index element={<UserDashboard />} />
                         <Route path="sessions" element={<UserSessions />} />
                         <Route path="settings" element={<UserSettings />} />
+                        <Route path="find-match" element={<Browse />} />
+                        <Route path="ai-companion" element={<AICompanion />} />
+                        <Route path="mood-tracker" element={<MoodTracker />} />
+                        <Route path="journal" element={<Journal />} />
+                        <Route path="challenges" element={<WellnessChallenges />} />
+                        <Route path="content-library" element={<ContentLibrary />} />
+                        <Route path="messages" element={<Messages />} />
                     </Route>
 
                     {/* Protected Expert Dashboard Routes - Only accessible to 'expert' role */}

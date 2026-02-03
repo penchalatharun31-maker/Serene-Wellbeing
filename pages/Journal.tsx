@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge } from '../components/UI';
 import { BookOpen, Plus, Search, Star, Calendar, Lock, Unlock, Sparkles, TrendingUp, TrendingDown } from 'lucide-react';
+import apiClient from '../services/api';
 
 interface JournalEntry {
   id: string;
@@ -49,8 +50,39 @@ export const Journal: React.FC = () => {
   const [view, setView] = useState<'list' | 'write'>('list');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [entries] = useState<JournalEntry[]>(mockEntries);
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Fetch journal entries from backend
+  useEffect(() => {
+    const fetchEntries = async () => {
+      try {
+        const { data } = await apiClient.get('/journal');
+        if (data.success && data.entries) {
+          setEntries(data.entries.map((e: any) => ({
+            id: e._id,
+            title: e.title || 'Untitled',
+            content: e.content,
+            date: new Date(e.createdAt),
+            mood: e.mood,
+            isFavorite: e.favorited || false,
+            aiAnalysis: e.aiAnalysis ? {
+              sentiment: e.aiAnalysis.sentiment?.includes('positive') ? 'positive' : e.aiAnalysis.sentiment?.includes('negative') ? 'negative' : 'neutral',
+              keywords: e.aiAnalysis.keywords || [],
+              insights: e.aiAnalysis.insights || [],
+            } : undefined,
+          })));
+        }
+      } catch (err) {
+        console.error('Failed to fetch journal entries:', err);
+        // Show empty list on error, not mock data
+      }
+    };
+    fetchEntries();
+  }, [view]); // Refetch when switching back to list view
 
   const filteredEntries = entries.filter(e =>
     e.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -98,14 +130,55 @@ export const Journal: React.FC = () => {
               onChange={(e) => setContent(e.target.value)}
               className="w-full h-96 border-0 focus:ring-0 resize-none text-gray-700"
             />
+            {saveError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{saveError}</div>
+            )}
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <Lock size={14} />
                 <span>Private & Encrypted</span>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline">Save Draft</Button>
-                <Button>Save Entry</Button>
+                <Button variant="outline" disabled={saveLoading} onClick={async () => {
+                  if (!content.trim()) { setSaveError('Content is required'); return; }
+                  setSaveLoading(true);
+                  setSaveError(null);
+                  try {
+                    if (editingId) {
+                      await apiClient.put(`/journal/${editingId}`, { title: title || undefined, content });
+                    } else {
+                      await apiClient.post('/journal', { title: title || undefined, content, mood: undefined });
+                    }
+                    setTitle('');
+                    setContent('');
+                    setEditingId(null);
+                    setView('list');
+                  } catch (err: any) {
+                    setSaveError(err.response?.data?.message || 'Failed to save draft');
+                  } finally {
+                    setSaveLoading(false);
+                  }
+                }}>Save Draft</Button>
+                <Button disabled={saveLoading || !content.trim()} onClick={async () => {
+                  if (!content.trim()) { setSaveError('Content is required'); return; }
+                  setSaveLoading(true);
+                  setSaveError(null);
+                  try {
+                    if (editingId) {
+                      await apiClient.put(`/journal/${editingId}`, { title: title || undefined, content });
+                    } else {
+                      await apiClient.post('/journal', { title: title || undefined, content });
+                    }
+                    setTitle('');
+                    setContent('');
+                    setEditingId(null);
+                    setView('list');
+                  } catch (err: any) {
+                    setSaveError(err.response?.data?.message || 'Failed to save entry');
+                  } finally {
+                    setSaveLoading(false);
+                  }
+                }}>{saveLoading ? 'Saving...' : 'Save Entry'}</Button>
               </div>
             </div>
           </Card>
@@ -163,13 +236,34 @@ export const Journal: React.FC = () => {
             </div>
 
             {/* Entries */}
+            {filteredEntries.length === 0 && (
+              <div className="text-center py-12">
+                <BookOpen className="mx-auto text-gray-300 mb-3" size={48} />
+                <p className="text-gray-500">No journal entries yet. Start writing!</p>
+                <Button className="mt-4" onClick={() => setView('write')}>
+                  <Plus size={16} className="mr-2" /> New Entry
+                </Button>
+              </div>
+            )}
             {filteredEntries.map(entry => (
-              <Card key={entry.id} className="p-6 hover:border-emerald-200 transition-colors cursor-pointer">
+              <Card key={entry.id} className="p-6 hover:border-emerald-200 transition-colors cursor-pointer" onClick={() => {
+                setTitle(entry.title === 'Untitled' ? '' : entry.title);
+                setContent(entry.content);
+                setEditingId(entry.id);
+                setView('write');
+              }}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-bold text-gray-900">{entry.title}</h3>
-                      {entry.isFavorite && <Star className="text-yellow-500" size={16} fill="currentColor" />}
+                      <button onClick={(e) => {
+                        e.stopPropagation();
+                        apiClient.put(`/journal/${entry.id}/favorite`).then(() => {
+                          setEntries(prev => prev.map(ent => ent.id === entry.id ? { ...ent, isFavorite: !ent.isFavorite } : ent));
+                        }).catch(console.error);
+                      }}>
+                        <Star className={entry.isFavorite ? "text-yellow-500" : "text-gray-300"} size={16} fill={entry.isFavorite ? "currentColor" : "none"} />
+                      </button>
                     </div>
                     <p className="text-sm text-gray-500 flex items-center gap-2">
                       <Calendar size={14} />
