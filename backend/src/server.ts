@@ -34,6 +34,8 @@ import blogRoutes from './routes/blog.routes';
 import pricingRoutes from './routes/pricing.routes';
 import companyRoutes from './routes/company.routes';
 import journalRoutes from './routes/journal.routes';
+import challengeRoutes from './routes/challenge.routes';
+import contentRoutes from './routes/content.routes';
 
 // Load environment variables
 dotenv.config();
@@ -125,6 +127,8 @@ app.use(`/api/${API_VERSION}/blog`, blogRoutes);
 app.use(`/api/${API_VERSION}/pricing`, pricingRoutes);
 app.use(`/api/${API_VERSION}/company`, companyRoutes);
 app.use(`/api/${API_VERSION}/journal`, journalRoutes);
+app.use(`/api/${API_VERSION}/challenges`, challengeRoutes);
+app.use(`/api/${API_VERSION}/content`, contentRoutes);
 
 // Health check endpoint
 app.get(`/api/${API_VERSION}/health`, (_req, res) => {

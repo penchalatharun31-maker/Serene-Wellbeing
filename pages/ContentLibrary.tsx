@@ -1,65 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Badge } from '../components/UI';
-import { Play, Clock, Star, Headphones, Film, BookOpen, Heart, Search, Filter } from 'lucide-react';
-
-const mockContent = [
-  {
-    id: '1',
-    title: '10-Minute Morning Meditation',
-    type: 'meditation',
-    category: 'stress',
-    duration: 10,
-    difficulty: 'beginner',
-    rating: 4.8,
-    plays: 15420,
-    instructor: 'Sarah Chen',
-    isFree: true,
-    thumbnailUrl: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400'
-  },
-  {
-    id: '2',
-    title: 'Breathing for Anxiety Relief',
-    type: 'breathing',
-    category: 'anxiety',
-    duration: 5,
-    difficulty: 'all',
-    rating: 4.9,
-    plays: 28350,
-    instructor: 'Dr. Michael Ross',
-    isFree: true,
-    thumbnailUrl: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=400'
-  },
-  {
-    id: '3',
-    title: 'Understanding Depression',
-    type: 'article',
-    category: 'depression',
-    duration: 8,
-    difficulty: 'all',
-    rating: 4.7,
-    plays: 12480,
-    instructor: 'Dr. Emily Hart',
-    isFree: true,
-    thumbnailUrl: 'https://images.unsplash.com/photo-1499728603263-13726abce5fd?w=400'
-  },
-  {
-    id: '4',
-    title: 'Sleep Better Tonight',
-    type: 'audio_guide',
-    category: 'sleep',
-    duration: 20,
-    difficulty: 'beginner',
-    rating: 4.9,
-    plays: 34210,
-    instructor: 'Luna Martinez',
-    isFree: false,
-    thumbnailUrl: 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=400'
-  },
-];
+import { Play, Clock, Star, Headphones, Film, BookOpen, Search, Loader2 } from 'lucide-react';
+import apiClient from '../services/api';
 
 export const ContentLibrary: React.FC = () => {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [content, setContent] = useState<any[]>([]);
+  const [featured, setFeatured] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Debounce search input by 400 ms
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch featured content once on mount
+  useEffect(() => {
+    apiClient.get('/content/featured')
+      .then(res => {
+        const items = res.data?.content || [];
+        if (items.length > 0) setFeatured(items[0]);
+      })
+      .catch(console.error);
+  }, []);
+
+  // Re-fetch content list whenever search or type filter changes
+  const fetchContent = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: Record<string, string> = {};
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (filter !== 'all') params.type = filter;
+
+      const res = await apiClient.get('/content', { params });
+      setContent(res.data?.content || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [debouncedSearch, filter]);
+
+  useEffect(() => {
+    fetchContent();
+  }, [fetchContent]);
+
+  const formatDuration = (minutes: number) => {
+    if (minutes >= 60) {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      return m > 0 ? `${h}h ${m}m` : `${h} hour${h > 1 ? 's' : ''}`;
+    }
+    return `${minutes} min`;
+  };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -69,11 +65,6 @@ export const ContentLibrary: React.FC = () => {
       default: return <Play size={16} />;
     }
   };
-
-  const filteredContent = mockContent.filter(item =>
-    item.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (filter === 'all' || item.type === filter)
-  );
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -115,83 +106,93 @@ export const ContentLibrary: React.FC = () => {
       </div>
 
       {/* Featured */}
-      <Card className="overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-2">
-          <div
-            className="h-64 md:h-auto bg-cover bg-center"
-            style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1499209974431-9dddcece7f88?w=800)' }}
-          ></div>
-          <div className="p-8 flex flex-col justify-center">
-            <Badge color="emerald" className="w-fit mb-3">Featured</Badge>
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">
-              Complete Mindfulness Course
-            </h2>
-            <p className="text-gray-600 mb-6">
-              12 guided sessions to master mindfulness meditation and reduce stress
-            </p>
-            <div className="flex items-center gap-4 mb-6 text-sm text-gray-500">
-              <span className="flex items-center gap-1">
-                <Clock size={14} />
-                6 hours
-              </span>
-              <span className="flex items-center gap-1">
-                <Star size={14} fill="currentColor" className="text-yellow-500" />
-                4.9 (2,340)
-              </span>
-              <Badge color="blue">Premium</Badge>
+      {featured && (
+        <Card className="overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2">
+            <div
+              className="h-64 md:h-auto bg-cover bg-center"
+              style={{ backgroundImage: featured.media?.thumbnailUrl ? `url(${featured.media.thumbnailUrl})` : 'linear-gradient(135deg, #10B981, #059669)' }}
+            ></div>
+            <div className="p-8 flex flex-col justify-center">
+              <Badge color="emerald" className="w-fit mb-3">Featured</Badge>
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                {featured.title}
+              </h2>
+              <p className="text-gray-600 mb-6">
+                {featured.description}
+              </p>
+              <div className="flex items-center gap-4 mb-6 text-sm text-gray-500">
+                <span className="flex items-center gap-1">
+                  <Clock size={14} />
+                  {formatDuration(featured.duration)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Star size={14} fill="currentColor" className="text-yellow-500" />
+                  {featured.stats?.avgRating?.toFixed(1) || '0.0'} ({(featured.stats?.totalRatings || 0).toLocaleString()})
+                </span>
+                {featured.isPremium && <Badge color="blue">Premium</Badge>}
+              </div>
+              <Button className="w-fit">Start Course</Button>
             </div>
-            <Button className="w-fit">Start Course</Button>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {/* Content Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredContent.map(item => (
-          <Card key={item.id} className="overflow-hidden hover:border-emerald-200 transition-colors group cursor-pointer">
-            <div className="relative">
-              <div
-                className="h-48 bg-cover bg-center"
-                style={{ backgroundImage: `url(${item.thumbnailUrl})` }}
-              >
-                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                  <div className="w-14 h-14 rounded-full bg-white/90 group-hover:bg-white flex items-center justify-center transition-colors">
-                    <Play size={24} className="text-emerald-600 ml-1" fill="currentColor" />
+      {loading ? (
+        <div className="flex items-center justify-center h-48">
+          <Loader2 className="animate-spin text-emerald-600" size={40} />
+        </div>
+      ) : content.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">No content found.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {content.map(item => (
+            <Card key={item._id} className="overflow-hidden hover:border-emerald-200 transition-colors group cursor-pointer">
+              <div className="relative">
+                <div
+                  className="h-48 bg-cover bg-center"
+                  style={{ backgroundImage: item.media?.thumbnailUrl ? `url(${item.media.thumbnailUrl})` : 'linear-gradient(135deg, #10B981, #059669)' }}
+                >
+                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-full bg-white/90 group-hover:bg-white flex items-center justify-center transition-colors">
+                      <Play size={24} className="text-emerald-600 ml-1" fill="currentColor" />
+                    </div>
                   </div>
                 </div>
+                {item.isPremium && (
+                  <div className="absolute top-3 right-3">
+                    <Badge color="blue">Premium</Badge>
+                  </div>
+                )}
               </div>
-              {!item.isFree && (
-                <div className="absolute top-3 right-3">
-                  <Badge color="blue">Premium</Badge>
+
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge color="gray">
+                    <span className="flex items-center gap-1">
+                      {getTypeIcon(item.type)}
+                      {item.type}
+                    </span>
+                  </Badge>
+                  <span className="text-xs text-gray-500">{item.duration} min</span>
                 </div>
-              )}
-            </div>
 
-            <div className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Badge color="gray">
-                  <span className="flex items-center gap-1">
-                    {getTypeIcon(item.type)}
-                    {item.type}
-                  </span>
-                </Badge>
-                <span className="text-xs text-gray-500">{item.duration} min</span>
-              </div>
+                <h3 className="font-bold text-gray-900 mb-1 line-clamp-2">{item.title}</h3>
+                <p className="text-sm text-gray-600 mb-3">{item.instructor || 'Serene Wellbeing'}</p>
 
-              <h3 className="font-bold text-gray-900 mb-1 line-clamp-2">{item.title}</h3>
-              <p className="text-sm text-gray-600 mb-3">{item.instructor}</p>
-
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-1 text-yellow-500">
-                  <Star size={14} fill="currentColor" />
-                  <span className="text-gray-900 font-medium">{item.rating}</span>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-1 text-yellow-500">
+                    <Star size={14} fill="currentColor" />
+                    <span className="text-gray-900 font-medium">{item.stats?.avgRating?.toFixed(1) || '0.0'}</span>
+                  </div>
+                  <span className="text-gray-500">{(item.stats?.plays || 0).toLocaleString()} plays</span>
                 </div>
-                <span className="text-gray-500">{item.plays.toLocaleString()} plays</span>
               </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,51 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Button, Badge } from '../components/UI';
-import { Trophy, Target, Users, Calendar, Star, CheckCircle, Play } from 'lucide-react';
-
-const mockChallenges = [
-  {
-    id: '1',
-    title: '7-Day Gratitude Journey',
-    description: 'Practice daily gratitude to boost your mood and perspective',
-    category: 'mindfulness',
-    difficulty: 'beginner',
-    duration: 7,
-    tasks: 7,
-    completed: 5,
-    participants: 1284,
-    points: 70,
-    imageUrl: 'https://images.unsplash.com/photo-1499209974431-9dddcece7f88?w=400'
-  },
-  {
-    id: '2',
-    title: '30-Day Meditation Master',
-    description: 'Build a consistent meditation practice',
-    category: 'mental_health',
-    difficulty: 'intermediate',
-    duration: 30,
-    tasks: 30,
-    completed: 0,
-    participants: 856,
-    points: 300,
-    imageUrl: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400'
-  },
-  {
-    id: '3',
-    title: 'Social Connection Week',
-    description: 'Reach out and strengthen your relationships',
-    category: 'social',
-    difficulty: 'beginner',
-    duration: 7,
-    tasks: 7,
-    completed: 7,
-    participants: 2103,
-    points: 100,
-    imageUrl: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400'
-  },
-];
+import { Trophy, Target, Users, Calendar, Star, CheckCircle, Play, Loader2 } from 'lucide-react';
+import apiClient from '../services/api';
 
 export const WellnessChallenges: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [challenges, setChallenges] = useState<any[]>([]);
+  const [stats, setStats] = useState({ active: 0, completed: 0, totalPoints: 0, rank: 0 });
+  const [loading, setLoading] = useState(true);
+  const [joining, setJoining] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        const [challengesRes, myRes, statsRes] = await Promise.all([
+          apiClient.get('/challenges'),
+          apiClient.get('/challenges/my').catch(() => ({ data: { challenges: [] } })),
+          apiClient.get('/challenges/stats').catch(() => ({ data: { stats: { active: 0, completed: 0, totalPoints: 0, rank: 0 } } })),
+        ]);
+        const allChallenges: any[] = challengesRes.data?.challenges || [];
+        const myList: any[] = myRes.data?.challenges || [];
+
+        // Merge user progress from /my into public challenge list
+        const merged = allChallenges.map(ch => {
+          const myEntry = myList.find((mc: any) => mc._id.toString() === ch._id.toString());
+          return myEntry ? { ...ch, userProgress: myEntry.userProgress } : ch;
+        });
+
+        setChallenges(merged);
+        setStats(statsRes.data?.stats || { active: 0, completed: 0, totalPoints: 0, rank: 0 });
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAll();
+  }, []);
+
+  const filteredChallenges = useMemo(() => {
+    if (filter === 'active') return challenges.filter(c => c.userProgress && c.userProgress.progress < 100);
+    if (filter === 'completed') return challenges.filter(c => c.userProgress && c.userProgress.progress >= 100);
+    return challenges;
+  }, [challenges, filter]);
+
+  const handleJoin = async (id: string) => {
+    setJoining(id);
+    try {
+      await apiClient.post(`/challenges/${id}/join`);
+      setChallenges(prev => prev.map(c =>
+        c._id === id ? { ...c, userProgress: { tasksCompleted: 0, totalTasks: c.tasks?.length || 0, progress: 0 } } : c
+      ));
+    } catch (e) { console.error(e); }
+    finally { setJoining(null); }
+  };
+
+  const handleCompleteTask = async (id: string, tasksCompleted: number) => {
+    try {
+      const res = await apiClient.post(`/challenges/${id}/complete-task`, { taskIndex: tasksCompleted });
+      setChallenges(prev => prev.map(c =>
+        c._id === id ? { ...c, userProgress: { ...c.userProgress, tasksCompleted: (c.userProgress?.tasksCompleted || 0) + 1, progress: res.data?.progress || 0 } } : c
+      ));
+    } catch (e) { console.error(e); }
+  };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -55,6 +72,14 @@ export const WellnessChallenges: React.FC = () => {
       default: return 'gray';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto flex items-center justify-center h-64">
+        <Loader2 className="animate-spin text-emerald-600" size={40} />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -89,7 +114,7 @@ export const WellnessChallenges: React.FC = () => {
             </div>
             <div>
               <p className="text-sm text-gray-500">Active</p>
-              <p className="text-xl font-bold text-gray-900">2</p>
+              <p className="text-xl font-bold text-gray-900">{stats.active}</p>
             </div>
           </div>
         </Card>
@@ -100,7 +125,7 @@ export const WellnessChallenges: React.FC = () => {
             </div>
             <div>
               <p className="text-sm text-gray-500">Completed</p>
-              <p className="text-xl font-bold text-gray-900">12</p>
+              <p className="text-xl font-bold text-gray-900">{stats.completed}</p>
             </div>
           </div>
         </Card>
@@ -111,7 +136,7 @@ export const WellnessChallenges: React.FC = () => {
             </div>
             <div>
               <p className="text-sm text-gray-500">Points</p>
-              <p className="text-xl font-bold text-gray-900">1,240</p>
+              <p className="text-xl font-bold text-gray-900">{stats.totalPoints.toLocaleString()}</p>
             </div>
           </div>
         </Card>
@@ -122,7 +147,7 @@ export const WellnessChallenges: React.FC = () => {
             </div>
             <div>
               <p className="text-sm text-gray-500">Rank</p>
-              <p className="text-xl font-bold text-gray-900">#48</p>
+              <p className="text-xl font-bold text-gray-900">#{stats.rank}</p>
             </div>
           </div>
         </Card>
@@ -130,15 +155,23 @@ export const WellnessChallenges: React.FC = () => {
 
       {/* Challenges Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {mockChallenges.map(challenge => {
-          const progress = (challenge.completed / challenge.tasks) * 100;
-          const isCompleted = challenge.completed === challenge.tasks;
+        {filteredChallenges.length === 0 && (
+          <div className="col-span-2 text-center py-12 text-gray-500">
+            No challenges found.
+          </div>
+        )}
+        {filteredChallenges.map(challenge => {
+          const totalTasks = challenge.tasks?.length || 0;
+          const tasksCompleted = challenge.userProgress?.tasksCompleted || 0;
+          const progress = totalTasks > 0 ? (tasksCompleted / totalTasks) * 100 : 0;
+          const isCompleted = challenge.userProgress?.progress >= 100;
+          const hasJoined = !!challenge.userProgress;
 
           return (
-            <Card key={challenge.id} className="overflow-hidden">
+            <Card key={challenge._id} className="overflow-hidden">
               <div
                 className="h-48 bg-cover bg-center relative"
-                style={{ backgroundImage: `url(${challenge.imageUrl})` }}
+                style={{ backgroundImage: challenge.imageUrl ? `url(${challenge.imageUrl})` : 'linear-gradient(135deg, #10B981, #059669)' }}
               >
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                 <div className="absolute bottom-4 left-4 right-4">
@@ -161,18 +194,18 @@ export const WellnessChallenges: React.FC = () => {
                     </span>
                     <span className="flex items-center gap-1">
                       <Users size={14} />
-                      {challenge.participants.toLocaleString()}
+                      {(challenge.participants?.length || 0).toLocaleString()}
                     </span>
                   </div>
-                  <span className="font-bold text-emerald-600">+{challenge.points} pts</span>
+                  <span className="font-bold text-emerald-600">+{challenge.totalPoints} pts</span>
                 </div>
 
-                {challenge.completed > 0 && (
+                {hasJoined && (
                   <div>
                     <div className="flex items-center justify-between text-sm mb-2">
                       <span className="text-gray-600">Progress</span>
                       <span className="font-medium text-gray-900">
-                        {challenge.completed}/{challenge.tasks} tasks
+                        {tasksCompleted}/{totalTasks} tasks
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -190,14 +223,17 @@ export const WellnessChallenges: React.FC = () => {
                       <CheckCircle size={16} className="mr-2" />
                       Completed
                     </Button>
-                  ) : challenge.completed > 0 ? (
-                    <Button className="flex-1">
+                  ) : hasJoined ? (
+                    <Button className="flex-1" onClick={() => handleCompleteTask(challenge._id, tasksCompleted)} disabled={tasksCompleted >= totalTasks}>
                       Continue Challenge
                     </Button>
                   ) : (
-                    <Button className="flex-1">
-                      <Play size={16} className="mr-2" />
-                      Start Challenge
+                    <Button className="flex-1" onClick={() => handleJoin(challenge._id)} disabled={joining === challenge._id}>
+                      {joining === challenge._id ? (
+                        <><Loader2 size={16} className="mr-2 animate-spin" />Joining...</>
+                      ) : (
+                        <><Play size={16} className="mr-2" />Start Challenge</>
+                      )}
                     </Button>
                   )}
                   <Button variant="outline">Details</Button>
