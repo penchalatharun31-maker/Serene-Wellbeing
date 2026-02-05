@@ -406,6 +406,15 @@ export const ExpertBookings: React.FC = () => {
         }
     };
 
+    const handleDecline = async (id: string) => {
+        try {
+            await apiClient.post(`/sessions/${id}/cancel`);
+            setBookings(prev => prev.map(b => b._id === id ? { ...b, status: 'cancelled' } : b));
+        } catch (e: any) {
+            console.error('Failed to decline session:', e.message);
+        }
+    };
+
     const formatDate = (dateStr: string) => {
         const d = new Date(dateStr);
         return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -437,7 +446,7 @@ export const ExpertBookings: React.FC = () => {
                                     {booking.status === 'pending' ? (
                                         <div className="flex gap-2">
                                             <Button size="sm" variant="secondary" onClick={() => handleStatusChange(booking._id, 'confirmed')}><CheckCircle size={16} className="mr-1" /> Accept</Button>
-                                            <Button size="sm" variant="ghost" onClick={() => handleStatusChange(booking._id, 'cancelled')}><XCircle size={16} className="mr-1" /> Decline</Button>
+                                            <Button size="sm" variant="ghost" onClick={() => handleDecline(booking._id)}><XCircle size={16} className="mr-1" /> Decline</Button>
                                         </div>
                                     ) : (
                                         <Badge color={booking.status === 'confirmed' ? 'emerald' : 'orange'}>{booking.status}</Badge>

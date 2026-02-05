@@ -39,8 +39,8 @@ const createExpertValidation = [
 
 // Public routes (with optional auth)
 router.get('/', optional, getAllExperts);
-router.get('/:id', optional, getExpertById);
 router.get('/user/:userId', optional, getExpertByUserId);
+router.get('/:id', optional, getExpertById);
 
 // Availability routes (public - for users browsing/booking)
 router.get('/:id/availability', getExpertAvailability); // GET /api/v1/experts/:id/availability?date=2026-01-15&duration=60
