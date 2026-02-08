@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Card, Button, Badge, Input, ImageUpload } from '../components/UI';
-import { Users, DollarSign, AlertTriangle, TrendingUp, MoreHorizontal, Check, X, Briefcase, Calendar, Settings, Tag, Edit, CreditCard, FileText } from 'lucide-react';
+import { Users, DollarSign, AlertTriangle, TrendingUp, MoreHorizontal, Check, X, Briefcase, Calendar, Settings, Tag, Edit, CreditCard, FileText, Loader2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { REVENUE_DATA } from '../data';
 import { LanguageSettings, AccessibilitySettings } from './ExtraPages';
+import apiClient from '../services/api';
 
 // --- SUB-COMPONENTS ---
 

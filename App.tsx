@@ -34,7 +34,7 @@ import FounderDashboard from './pages/FounderDashboard';
 import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
 import { VideoSession } from './pages/VideoSession';
-import Pricing from './frontend/src/pages/Pricing';
+import Pricing from './pages/Pricing';
 
 // Layout wrapper for dashboard pages to include Sidebar
 const DashboardLayout: React.FC<{ type: 'user' | 'expert' | 'company' | 'super_admin' }> = ({ type }) => (
@@ -87,7 +87,6 @@ const App: React.FC = () => {
                         <Route path="/refund-policy" element={<RefundPolicy />} />
                         <Route path="/referrals" element={<Referrals />} />
                         <Route path="/rate-session" element={<RateSession />} />
-                        <Route path="/commission-split" element={<CommissionSplit />} />
                         <Route path="/commission-split" element={<CommissionSplit />} />
                         <Route path="/invoice/:id" element={<Invoice />} />
                         <Route path="/session/:sessionId/video" element={<ProtectedRoute><VideoSession /></ProtectedRoute>} />
