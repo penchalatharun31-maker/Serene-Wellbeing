@@ -296,7 +296,7 @@ const Step4Results = ({ selections, nextStep, prevStep }: any) => {
     );
 };
 
-const Step5Account = ({ handleGoogleLogin, login, nextStep, prevStep }: any) => (
+const Step5Account = ({ login, nextStep, prevStep }: any) => (
     <div className="max-md mx-auto space-y-10">
         <div className="text-center space-y-3">
             <h2 className="text-3xl font-extrabold text-gray-900">Save Your Progress</h2>
@@ -304,21 +304,6 @@ const Step5Account = ({ handleGoogleLogin, login, nextStep, prevStep }: any) => 
         </div>
 
         <Card className="p-8 space-y-6">
-            <div className="space-y-4">
-                <Button variant="outline" className="w-full flex justify-center gap-3 py-6 rounded-2xl border-gray-200 hover:border-emerald-200 transition-all" onClick={handleGoogleLogin}>
-                    <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="" />
-                    Continue with Google
-                </Button>
-                <Button variant="outline" className="w-full py-6 rounded-2xl border-gray-200 hover:border-emerald-200">
-                    Continue with Phone
-                </Button>
-            </div>
-
-            <div className="relative py-2 text-center">
-                <div className="absolute inset-x-0 top-1/2 h-px bg-gray-100"></div>
-                <span className="relative z-10 bg-white px-4 text-xs font-bold text-gray-400 uppercase tracking-widest">or</span>
-            </div>
-
             <form className="space-y-4" onSubmit={async (e) => {
                 e.preventDefault();
                 try {
@@ -424,15 +409,6 @@ const Onboarding: React.FC = () => {
     const nextStep = () => setStep(Math.min(currentStep + 1, totalSteps));
     const prevStep = () => setStep(Math.max(currentStep - 1, 1));
 
-    const handleGoogleLogin = async () => {
-        try {
-            await login('guest@serene.com', 'password123', true);
-            nextStep();
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             {/* Progress Bar Header */}
@@ -451,7 +427,7 @@ const Onboarding: React.FC = () => {
                 {currentStep === 2 && <Step2Assessment selections={selections} setSelections={setSelections} nextStep={nextStep} prevStep={prevStep} />}
                 {currentStep === 3 && <Step3Preferences selections={selections} setSelections={setSelections} nextStep={nextStep} prevStep={prevStep} />}
                 {currentStep === 4 && <Step4Results selections={selections} nextStep={nextStep} prevStep={prevStep} />}
-                {currentStep === 5 && <Step5Account handleGoogleLogin={handleGoogleLogin} login={login} nextStep={nextStep} prevStep={prevStep} />}
+                {currentStep === 5 && <Step5Account login={login} nextStep={nextStep} prevStep={prevStep} />}
                 {currentStep === 6 && <Step6Booking navigate={navigate} />}
             </div>
 

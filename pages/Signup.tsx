@@ -33,21 +33,6 @@ const Signup: React.FC = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      await login('guest@google.com', 'password123', true); // Use noNavigate
-      if (role === 'company') {
-        navigate('/company-onboarding');
-      } else if (role === 'expert') {
-        navigate('/expert-onboarding');
-      } else {
-        navigate(`/dashboard/${role}`);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   return (
     <div className={`min-h-screen flex flex-col bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 ${role === 'company' ? 'lg:bg-white' : ''}`}>
       {/* Header with Logo - Back to Home */}
@@ -160,20 +145,6 @@ const Signup: React.FC = () => {
                 Get Started for Free
               </Button>
             </form>
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-400 uppercase tracking-widest font-bold">Or continue with</span>
-              </div>
-            </div>
-
-            <Button variant="outline" className="w-full flex justify-center gap-3 py-6 rounded-xl border-gray-200 hover:border-emerald-200 transition-all font-bold" onClick={handleGoogleLogin}>
-              <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="" />
-              Sign up with Google
-            </Button>
           </Card>
         </div>
       </div>
