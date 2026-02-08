@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge, Input, ImageUpload } from '../components/UI';
-import { UPCOMING_SESSIONS, PAST_SESSIONS, REVENUE_DATA, ENGAGEMENT_DATA } from '../data';
+import { REVENUE_DATA, ENGAGEMENT_DATA } from '../data';
 import { Activity, BadgeCheck, BarChart2, Calendar, CheckCircle, ChevronRight, Clock, CreditCard, DollarSign, Download, LayoutDashboard, Mail, MessageCircle, Plus, PlusCircle, Search, Settings, ShieldCheck, Star, TrendingUp, Trash, Users, Video, XCircle, ArrowRight, Briefcase, FileText } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { useAuth } from '../context/AuthContext';
@@ -68,6 +68,23 @@ export const UserDashboard: React.FC = () => {
     const { user, updateUser } = useAuth();
     const navigate = useNavigate();
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [upcomingSessions, setUpcomingSessions] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // Fetch real user sessions from backend
+    useEffect(() => {
+        const fetchSessions = async () => {
+            try {
+                const { data } = await apiClient.get('/sessions/user/upcoming');
+                setUpcomingSessions(data.sessions || []);
+            } catch (err) {
+                console.error('Failed to fetch sessions:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSessions();
+    }, []);
 
     const handleTopUpSuccess = (credits: number) => {
         if (user) {
@@ -91,9 +108,29 @@ export const UserDashboard: React.FC = () => {
                         <h3 className="font-bold text-gray-900">Upcoming Sessions</h3>
                         <Link to="/dashboard/user/sessions" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">View All</Link>
                     </div>
-                    <div className="space-y-4">
-                        {UPCOMING_SESSIONS.map(s => <SessionRow key={s.id} session={s} />)}
-                    </div>
+                    {loading ? (
+                        <div className="flex justify-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                        </div>
+                    ) : upcomingSessions.length > 0 ? (
+                        <div className="space-y-4">
+                            {upcomingSessions.slice(0, 3).map(session => (
+                                <SessionRow key={session._id} session={{
+                                    id: session._id,
+                                    type: session.sessionType || 'Therapy Session',
+                                    expertName: session.expertId?.name || 'Expert',
+                                    date: new Date(session.scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                                    time: session.scheduledTime || 'TBD'
+                                }} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-12">
+                            <Calendar className="mx-auto text-gray-300 mb-4" size={48} />
+                            <p className="text-gray-500 mb-4">No upcoming sessions</p>
+                            <Button onClick={() => navigate('/browse')}>Book Your First Session</Button>
+                        </div>
+                    )}
                 </Card>
 
                 <div className="space-y-6">
@@ -120,11 +157,13 @@ export const UserDashboard: React.FC = () => {
 
                     <Card className="p-6">
                         <h3 className="font-bold text-gray-900 mb-4">Recommended for you</h3>
-                        <div className="flex items-center gap-3 mb-3">
-                            <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=100" className="w-10 h-10 rounded-full object-cover" alt="" />
+                        <div className="flex items-center gap-3 mb-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors" onClick={() => navigate('/dashboard/user/challenges')}>
+                            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                                <Trophy className="text-emerald-600" size={20} />
+                            </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">Stress Management</p>
-                                <p className="text-xs text-gray-500 truncate">Workshop • Dr. Anya</p>
+                                <p className="text-sm font-medium text-gray-900 truncate">Start a Wellness Challenge</p>
+                                <p className="text-xs text-gray-500 truncate">Build healthy habits</p>
                             </div>
                             <Button size="sm" variant="ghost" className="p-2"><ChevronRight size={16} /></Button>
                         </div>
@@ -137,41 +176,93 @@ export const UserDashboard: React.FC = () => {
 
 export const UserSessions: React.FC = () => {
     const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
+    const [upcomingSessions, setUpcomingSessions] = useState<any[]>([]);
+    const [pastSessions, setPastSessions] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const fetchSessions = async () => {
+            try {
+                const { data } = await apiClient.get('/sessions/user/all');
+                const allSessions = data.sessions || [];
+                const now = new Date();
+
+                setUpcomingSessions(allSessions.filter((s: any) =>
+                    s.status === 'confirmed' && new Date(s.scheduledDate) >= now
+                ));
+                setPastSessions(allSessions.filter((s: any) =>
+                    s.status === 'completed' || new Date(s.scheduledDate) < now
+                ));
+            } catch (err) {
+                console.error('Failed to fetch sessions:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSessions();
+    }, []);
+
+    const formatSession = (session: any) => ({
+        id: session._id,
+        type: session.sessionType || 'Therapy Session',
+        expertName: session.expertId?.name || 'Expert',
+        date: new Date(session.scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        time: session.scheduledTime || 'TBD'
+    });
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900">Your Sessions</h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-gray-900">Your Sessions</h1>
+                <Button variant="outline" onClick={() => navigate('/dashboard/user')}>
+                    ← Back to Dashboard
+                </Button>
+            </div>
 
             <div className="flex border-b border-gray-200">
                 <button
                     className={`pb-3 px-4 text-sm font-medium transition-colors ${tab === 'upcoming' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500 hover:text-gray-700'}`}
                     onClick={() => setTab('upcoming')}
                 >
-                    Upcoming
+                    Upcoming ({upcomingSessions.length})
                 </button>
                 <button
                     className={`pb-3 px-4 text-sm font-medium transition-colors ${tab === 'past' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500 hover:text-gray-700'}`}
                     onClick={() => setTab('past')}
                 >
-                    Past History
+                    Past History ({pastSessions.length})
                 </button>
             </div>
 
-            <div className="space-y-4">
-                {tab === 'upcoming' ? (
-                    UPCOMING_SESSIONS.length > 0 ? (
-                        UPCOMING_SESSIONS.map(s => <SessionRow key={s.id} session={s} />)
+            {loading ? (
+                <div className="flex justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {tab === 'upcoming' ? (
+                        upcomingSessions.length > 0 ? (
+                            upcomingSessions.map(s => <SessionRow key={s._id} session={formatSession(s)} />)
+                        ) : (
+                            <div className="text-center py-12">
+                                <Calendar className="mx-auto text-gray-300 mb-4" size={48} />
+                                <p className="text-gray-500 mb-4">No upcoming sessions</p>
+                                <Button onClick={() => navigate('/browse')}>Book Your First Session</Button>
+                            </div>
+                        )
                     ) : (
-                        <p className="text-gray-500 text-center py-8">No upcoming sessions.</p>
-                    )
-                ) : (
-                    PAST_SESSIONS.length > 0 ? (
-                        PAST_SESSIONS.map(s => <SessionRow key={s.id} session={s} isPast />)
-                    ) : (
-                        <p className="text-gray-500 text-center py-8">No session history.</p>
-                    )
-                )}
-            </div>
+                        pastSessions.length > 0 ? (
+                            pastSessions.map(s => <SessionRow key={s._id} session={formatSession(s)} isPast />)
+                        ) : (
+                            <div className="text-center py-12">
+                                <Clock className="mx-auto text-gray-300 mb-4" size={48} />
+                                <p className="text-gray-500">No past sessions yet</p>
+                            </div>
+                        )
+                    )}
+                </div>
+            )}
         </div>
     );
 };

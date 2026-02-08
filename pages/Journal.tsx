@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge } from '../components/UI';
-import { BookOpen, Plus, Search, Star, Calendar, Lock, Unlock, Sparkles, TrendingUp, TrendingDown } from 'lucide-react';
+import { BookOpen, Plus, Search, Star, Calendar, Lock, Unlock, Sparkles, TrendingUp, TrendingDown, ArrowLeft } from 'lucide-react';
 import apiClient from '../services/api';
 
 interface JournalEntry {
@@ -47,6 +48,7 @@ const mockEntries: JournalEntry[] = [
 ];
 
 export const Journal: React.FC = () => {
+  const navigate = useNavigate();
   const [view, setView] = useState<'list' | 'write'>('list');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -108,9 +110,14 @@ export const Journal: React.FC = () => {
           </h1>
           <p className="text-gray-500">Your private space for reflection and growth</p>
         </div>
-        <Button onClick={() => setView(view === 'list' ? 'write' : 'list')}>
-          {view === 'list' ? <><Plus size={18} className="mr-2" /> New Entry</> : 'Back to Entries'}
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => navigate('/dashboard/user')}>
+            <ArrowLeft size={18} className="mr-2" /> Dashboard
+          </Button>
+          <Button onClick={() => setView(view === 'list' ? 'write' : 'list')}>
+            {view === 'list' ? <><Plus size={18} className="mr-2" /> New Entry</> : 'Back to Entries'}
+          </Button>
+        </div>
       </div>
 
       {view === 'write' ? (

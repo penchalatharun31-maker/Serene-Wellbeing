@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge } from '../components/UI';
-import { Play, Clock, Star, Headphones, Film, BookOpen, Search, Loader2 } from 'lucide-react';
+import { Play, Clock, Star, Headphones, Film, BookOpen, Search, Loader2, ArrowLeft } from 'lucide-react';
 import apiClient from '../services/api';
 
 export const ContentLibrary: React.FC = () => {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -77,6 +79,9 @@ export const ContentLibrary: React.FC = () => {
           </h1>
           <p className="text-gray-500">Meditation, exercises, and wellness resources</p>
         </div>
+        <Button variant="outline" onClick={() => navigate('/dashboard/user')}>
+          <ArrowLeft size={18} className="mr-2" /> Dashboard
+        </Button>
       </div>
 
       {/* Search & Filter */}

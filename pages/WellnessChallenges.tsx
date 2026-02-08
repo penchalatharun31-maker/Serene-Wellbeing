@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge } from '../components/UI';
-import { Trophy, Target, Users, Calendar, Star, CheckCircle, Play, Loader2 } from 'lucide-react';
+import { Trophy, Target, Users, Calendar, Star, CheckCircle, Play, Loader2, ArrowLeft } from 'lucide-react';
 import apiClient from '../services/api';
 
 export const WellnessChallenges: React.FC = () => {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [challenges, setChallenges] = useState<any[]>([]);
   const [stats, setStats] = useState({ active: 0, completed: 0, totalPoints: 0, rank: 0 });
@@ -93,6 +95,9 @@ export const WellnessChallenges: React.FC = () => {
           <p className="text-gray-500">Level up your mental health journey</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/user')}>
+            <ArrowLeft size={16} className="mr-1" /> Dashboard
+          </Button>
           <Button variant={filter === 'all' ? 'primary' : 'outline'} size="sm" onClick={() => setFilter('all')}>
             All
           </Button>
