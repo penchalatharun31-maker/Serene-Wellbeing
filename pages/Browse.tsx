@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { EXPERTS } from '../data';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge } from '../components/UI';
-import { Star, Filter, MapPin } from 'lucide-react';
+import { Star, Filter, MapPin, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { SignInRequiredModal } from '../components/SignInRequiredModal';
+import { Expert } from '../types';
+import apiClient from '../services/api';
 
 const Browse: React.FC = () => {
     const navigate = useNavigate();
@@ -12,6 +13,34 @@ const Browse: React.FC = () => {
     const { isAuthenticated } = useAuth();
     const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
     const [selectedExpertId, setSelectedExpertId] = useState<string | null>(null);
+    const [experts, setExperts] = useState<Expert[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // Fetch real experts from backend
+    useEffect(() => {
+        const fetchExperts = async () => {
+            try {
+                const { data } = await apiClient.get('/experts');
+                // Map backend _id to frontend id
+                const mappedExperts = (data.experts || []).map((exp: any) => ({
+                    ...exp,
+                    id: exp._id,
+                    image: exp.profilePhoto || exp.image,
+                    rating: exp.stats?.avgRating || 0,
+                    reviews: exp.stats?.totalReviews || 0,
+                    price: exp.hourlyRate || 0,
+                    tags: exp.specializations || [],
+                    about: exp.bio || '',
+                }));
+                setExperts(mappedExperts);
+            } catch (err) {
+                console.error('Failed to fetch experts:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchExperts();
+    }, []);
 
     const handleBookClick = (expertId: string) => {
         if (isAuthenticated) {
@@ -26,8 +55,8 @@ const Browse: React.FC = () => {
     const categories = ['All', 'Psychologist', 'Life Coach', 'Yoga Instructor', 'Nutritionist', 'POSH Trainer'];
     const countries = ['All', 'India', 'USA', 'UK', 'UAE', 'Singapore'];
 
-    const filteredExperts = EXPERTS.filter(e => {
-        const categoryMatch = filter === 'All' || e.tags.some(t => t.includes(filter)) || e.title.includes(filter);
+    const filteredExperts = experts.filter(e => {
+        const categoryMatch = filter === 'All' || e.tags.some(t => t.includes(filter)) || e.title.includes(filter) || e.category?.includes(filter);
         const countryMatch = countryFilter === 'All' || (e as any).country === countryFilter;
         return categoryMatch && countryMatch;
     });
@@ -41,6 +70,14 @@ const Browse: React.FC = () => {
             default: return '₹';
         }
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="animate-spin text-emerald-600" size={48} />
+            </div>
+        );
+    }
 
     return (
         <div className="bg-gray-50 min-h-screen pb-20">

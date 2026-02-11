@@ -1,18 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { EXPERTS } from '../data';
 import { Button, Card, Badge } from '../components/UI';
 import { BookingModal } from '../components/BookingModal';
-import { Star, MapPin, Calendar, Clock, Award, ShieldCheck, MessageSquare, ArrowLeft } from 'lucide-react';
+import { Star, MapPin, Calendar, Clock, Award, ShieldCheck, MessageSquare, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SignInRequiredModal } from '../components/SignInRequiredModal';
+import { Expert } from '../types';
+import apiClient from '../services/api';
 
 const ExpertProfile: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const expert = EXPERTS.find(e => e.id === id) || EXPERTS[0];
+    const [expert, setExpert] = useState<Expert | null>(null);
+    const [loading, setLoading] = useState(true);
     const [isBookingOpen, setIsBookingOpen] = useState(false);
     const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
     const { isAuthenticated } = useAuth();
+
+    useEffect(() => {
+        const fetchExpert = async () => {
+            if (!id) return;
+            try {
+                const { data } = await apiClient.get(`/experts/${id}`);
+                const exp = data.expert;
+                setExpert({
+                    ...exp,
+                    id: exp._id,
+                    image: exp.profilePhoto || exp.image,
+                    rating: exp.stats?.avgRating || 0,
+                    reviews: exp.stats?.totalReviews || 0,
+                    price: exp.hourlyRate || 0,
+                    tags: exp.specializations || [],
+                    about: exp.bio || '',
+                });
+            } catch (err) {
+                console.error('Failed to fetch expert:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchExpert();
+    }, [id]);
 
     const handleBookClick = () => {
         if (isAuthenticated) {
@@ -21,6 +48,25 @@ const ExpertProfile: React.FC = () => {
             setIsSignInModalOpen(true);
         }
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="animate-spin text-emerald-600" size={48} />
+            </div>
+        );
+    }
+
+    if (!expert) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center">
+                <p className="text-gray-500 text-lg mb-4">Expert not found</p>
+                <Link to="/browse">
+                    <Button>Back to Browse</Button>
+                </Link>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-gray-50 min-h-screen py-12">
