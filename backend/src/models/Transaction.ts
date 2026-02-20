@@ -9,9 +9,11 @@ export interface ITransaction extends Document {
   amount: number;
   currency: string;
   status: 'pending' | 'completed' | 'failed' | 'cancelled';
-  paymentMethod: 'card' | 'credits' | 'bank_transfer' | 'other';
-  paymentIntentId?: string;
-  stripeChargeId?: string;
+  paymentMethod: 'card' | 'credits' | 'bank_transfer' | 'upi' | 'netbanking' | 'wallet' | 'other';
+  paymentIntentId?: string; // Legacy Stripe field (deprecated)
+  stripeChargeId?: string; // Legacy Stripe field (deprecated)
+  razorpayPaymentId?: string; // Razorpay Payment ID
+  razorpayOrderId?: string; // Razorpay Order ID
   metadata: {
     platformFee?: number;
     expertEarnings?: number;
@@ -54,7 +56,7 @@ const TransactionSchema = new Schema<ITransaction>(
     },
     currency: {
       type: String,
-      default: 'USD',
+      default: process.env.DEFAULT_CURRENCY || 'INR',
       uppercase: true,
     },
     status: {
@@ -64,11 +66,13 @@ const TransactionSchema = new Schema<ITransaction>(
     },
     paymentMethod: {
       type: String,
-      enum: ['card', 'credits', 'bank_transfer', 'other'],
+      enum: ['card', 'credits', 'bank_transfer', 'upi', 'netbanking', 'wallet', 'other'],
       required: true,
     },
-    paymentIntentId: String,
-    stripeChargeId: String,
+    paymentIntentId: String, // Legacy Stripe field (deprecated)
+    stripeChargeId: String, // Legacy Stripe field (deprecated)
+    razorpayPaymentId: String, // Razorpay Payment ID
+    razorpayOrderId: String, // Razorpay Order ID
     metadata: {
       platformFee: Number,
       expertEarnings: Number,

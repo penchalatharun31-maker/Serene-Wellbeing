@@ -14,7 +14,9 @@ export interface IGroupSession extends Document {
     userId: mongoose.Types.ObjectId;
     joinedAt: Date;
     paymentStatus: 'pending' | 'paid' | 'refunded';
-    paymentIntentId?: string;
+    paymentIntentId?: string; // Legacy Stripe field (deprecated)
+    paymentOrderId?: string; // Razorpay Order ID
+    razorpayPaymentId?: string; // Razorpay Payment ID
   }>;
   price: number;
   currency: string;
@@ -93,7 +95,9 @@ const GroupSessionSchema = new Schema<IGroupSession>(
           enum: ['pending', 'paid', 'refunded'],
           default: 'pending',
         },
-        paymentIntentId: String,
+        paymentIntentId: String, // Legacy Stripe field (deprecated)
+        paymentOrderId: String, // Razorpay Order ID
+        razorpayPaymentId: String, // Razorpay Payment ID
       },
     ],
     price: {
