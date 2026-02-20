@@ -1,6 +1,9 @@
 {
   "dependencies": {
-    "@types/express-session": "^1.18.2",
     "express-session": "^1.19.0"
+  },
+  "devDependencies": {
+    "@types/connect-mongo": "^3.1.2",
+    "@types/express-session": "^1.18.2"
   }
 }
