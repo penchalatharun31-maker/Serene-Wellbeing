@@ -4,9 +4,12 @@ import bcrypt from 'bcryptjs';
 export interface IUser extends Document {
   name: string;
   email: string;
-  password: string;
+  password?: string;
   role: 'user' | 'expert' | 'company' | 'super_admin';
   avatar?: string;
+  googleId?: string;
+  profilePhoto?: string;
+  isEmailVerified?: boolean;
   phone?: string;
   dateOfBirth?: Date;
   credits: number;
@@ -47,7 +50,7 @@ const UserSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: false, // Optional for OAuth users
       minlength: [8, 'Password must be at least 8 characters'],
       select: false,
     },
@@ -59,6 +62,18 @@ const UserSchema = new Schema<IUser>(
     avatar: {
       type: String,
       default: null,
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows null values while maintaining uniqueness
+    },
+    profilePhoto: {
+      type: String,
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
     },
     phone: {
       type: String,
@@ -117,7 +132,8 @@ const UserSchema = new Schema<IUser>(
 
 // Hash password before saving
 UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  // Skip if password is not modified or doesn't exist (OAuth users)
+  if (!this.isModified('password') || !this.password) return next();
 
   try {
     const salt = await bcrypt.genSalt(12);

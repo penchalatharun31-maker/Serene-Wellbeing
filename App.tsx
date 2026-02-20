@@ -13,6 +13,7 @@ import Browse from './pages/Browse';
 import ExpertProfile from './pages/ExpertProfile';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import OAuthCallback from './pages/OAuthCallback';
 import Resources from './pages/Resources';
 import GroupSessions from './pages/GroupSessions';
 import Messages from './pages/Messages';
@@ -69,6 +70,7 @@ const App: React.FC = () => {
                     {/* Auth Routes */}
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
+                    <Route path="/oauth-callback" element={<OAuthCallback />} />
                     <Route path="/onboarding" element={<Onboarding />} />
                     <Route path="/company-onboarding" element={<CompanyOnboarding />} />
                     <Route path="/expert-onboarding" element={<ExpertOnboarding />} />

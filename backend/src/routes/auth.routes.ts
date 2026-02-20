@@ -1,5 +1,6 @@
 import express from 'express';
 import { body } from 'express-validator';
+import passport from '../config/passport';
 import {
   register,
   login,
@@ -12,6 +13,11 @@ import {
   verifyEmail,
   updatePreferences,
 } from '../controllers/auth.controller';
+import {
+  setOAuthRole,
+  googleCallback,
+  googleFailure,
+} from '../controllers/oauth.controller';
 import { protect } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { authLimiter, passwordResetLimiter } from '../middleware/rateLimiter';
@@ -47,6 +53,25 @@ router.post('/register', authLimiter, validate(registerValidation), register);
 router.post('/login', authLimiter, validate(loginValidation), login);
 router.post('/forgot-password', passwordResetLimiter, forgotPassword);
 router.post('/reset-password', passwordResetLimiter, resetPassword);
+
+// Google OAuth routes
+router.post('/oauth/set-role', setOAuthRole); // Set role before OAuth
+router.get(
+  '/google',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: true,
+  })
+);
+router.get(
+  '/google/callback',
+  passport.authenticate('google', {
+    failureRedirect: '/api/v1/auth/google/failure',
+    session: false,
+  }),
+  googleCallback
+);
+router.get('/google/failure', googleFailure);
 
 // Protected routes
 router.use(protect);

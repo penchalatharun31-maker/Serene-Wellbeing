@@ -6,8 +6,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
+import session from 'express-session';
 import path from 'path';
 import connectDB from './config/database';
+import passport from './config/passport';
 import logger from './utils/logger';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import { sanitizeInput } from './middleware/validation';
@@ -75,6 +77,24 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+
+// Session middleware (required for OAuth)
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'dev-session-secret-not-for-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  })
+);
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Compression middleware
 app.use(compression());
