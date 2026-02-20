@@ -50,7 +50,7 @@ git clone https://github.com/yourusername/serene-wellbeing.git
 cd serene-wellbeing/backend
 
 # Install dependencies
-npm ci --only=production
+npm ci --omit=dev
 
 # Build TypeScript
 npm run build
