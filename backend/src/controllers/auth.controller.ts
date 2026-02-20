@@ -18,7 +18,7 @@ export const register = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { name, email, password, role, phone, dateOfBirth } = req.body;
+    const { name, email, password, role, phone, dateOfBirth, country, currency, hourlyRate } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -34,6 +34,8 @@ export const register = async (
       role: role || 'user',
       phone,
       dateOfBirth,
+      country: country || 'India',
+      currency: currency || 'INR',
     });
 
     // If role is expert, create expert profile
@@ -44,7 +46,9 @@ export const register = async (
         specialization: [],
         bio: '',
         experience: 0,
-        hourlyRate: 100,
+        hourlyRate: hourlyRate ? Number(hourlyRate) : 100, // Use provided rate or default
+        currency: currency || 'INR',
+        country: country || 'India',
         isApproved: false,
         approvalStatus: 'pending',
       });

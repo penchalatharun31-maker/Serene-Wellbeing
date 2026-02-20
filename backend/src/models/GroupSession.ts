@@ -19,6 +19,7 @@ export interface IGroupSession extends Document {
     razorpayPaymentId?: string; // Razorpay Payment ID
   }>;
   price: number;
+  currency: string;
   status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
   meetingLink?: string;
   imageUrl?: string;
@@ -103,6 +104,10 @@ const GroupSessionSchema = new Schema<IGroupSession>(
       type: Number,
       required: [true, 'Price is required'],
       min: [0, 'Price cannot be negative'],
+    },
+    currency: {
+      type: String,
+      default: 'INR',
     },
     status: {
       type: String,

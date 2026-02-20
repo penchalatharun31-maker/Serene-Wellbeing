@@ -260,3 +260,44 @@ export const sendSessionReminder = async (
     html,
   });
 };
+export const sendLowCreditReminder = async (
+  email: string,
+  companyName: string,
+  remainingCredits: number
+): Promise<void> => {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #EF4444; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background: #f9f9f9; }
+          .button { background: #4F46E5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Low Credit Alert!</h1>
+          </div>
+          <div class="content">
+            <h2>Hello ${companyName} Admin,</h2>
+            <p>Your company's wellness credits are running low.</p>
+            <p><strong>Remaining Credits:</strong> ${remainingCredits.toFixed(2)}</p>
+            <p>To ensure uninterrupted access to sessions for your employees, please recharge your credits soon.</p>
+            <a href="${process.env.FRONTEND_URL}/dashboard/company/billing" class="button">Recharge Credits</a>
+            <p>Best regards,<br>The Serene Wellbeing Team</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  await sendEmail({
+    to: email,
+    subject: `Action Required: Low Credits for ${companyName} - Serene Wellbeing`,
+    html,
+  });
+};

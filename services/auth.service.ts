@@ -12,6 +12,8 @@ export interface RegisterData {
   role?: 'user' | 'expert' | 'company' | 'super_admin';
   phone?: string;
   dateOfBirth?: string;
+  country?: string;
+  currency?: string;
 }
 
 export interface AuthResponse {
@@ -26,6 +28,8 @@ export interface AuthResponse {
     avatar?: string;
     credits: number;
     isVerified: boolean;
+    country?: string;
+    currency?: string;
   };
 }
 

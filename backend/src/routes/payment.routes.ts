@@ -1,13 +1,15 @@
 import express from 'express';
 import { body } from 'express-validator';
 import {
-  createPaymentOrder,
-  verifyPayment,
+  createPaymentIntent,
+  confirmPayment,
   purchaseCredits,
-  verifyCreditPurchase,
+  confirmCreditPurchase,
   getPaymentHistory,
   requestRefund,
   webhookHandler,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
 } from '../controllers/payment.controller';
 import { protect } from '../middleware/auth';
 import { validate } from '../middleware/validation';
@@ -25,26 +27,17 @@ const createPaymentValidation = [
   body('amount').isFloat({ min: 0 }).withMessage('Valid amount is required'),
 ];
 
-const verifyPaymentValidation = [
-  body('razorpay_order_id').notEmpty().withMessage('Order ID is required'),
-  body('razorpay_payment_id').notEmpty().withMessage('Payment ID is required'),
-  body('razorpay_signature').notEmpty().withMessage('Signature is required'),
-];
-
 const purchaseCreditsValidation = [
-  body('amount').isFloat({ min: 1 }).withMessage('Amount must be at least ₹1'),
+  body('amount').isFloat({ min: 1 }).withMessage('Amount must be at least $1'),
   body('credits').isInt({ min: 1 }).withMessage('Credits must be at least 1'),
 ];
 
-// Payment routes
-router.post('/create-order', validate(createPaymentValidation), createPaymentOrder);
-router.post('/verify', validate(verifyPaymentValidation), verifyPayment);
-
-// Credits routes
+router.post('/create-intent', validate(createPaymentValidation), createPaymentIntent);
+router.post('/create-razorpay-order', createRazorpayOrder);
+router.post('/verify', verifyRazorpayPayment);
+router.post('/confirm', confirmPayment);
 router.post('/credits/purchase', validate(purchaseCreditsValidation), purchaseCredits);
-router.post('/credits/verify', verifyCreditPurchase);
-
-// Other routes
+router.post('/credits/confirm', confirmCreditPurchase);
 router.get('/history', getPaymentHistory);
 router.post('/refund', requestRefund);
 

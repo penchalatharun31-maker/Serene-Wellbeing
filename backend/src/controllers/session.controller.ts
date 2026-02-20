@@ -60,13 +60,41 @@ export const createSession = async (
 
     if (useCredits) {
       const user = await User.findById(req.user!._id);
-      if (user && user.credits > 0) {
-        creditsUsed = Math.min(user.credits, totalPrice);
-        amountToPay = totalPrice - creditsUsed;
+      if (user) {
+        // If user is part of a company, deduct from company credits first
+        if (user.companyId) {
+          const Company = (await import('../models/Company')).default;
+          const company = await Company.findById(user.companyId);
+          if (company && company.credits > 0) {
+            creditsUsed = Math.min(company.credits, totalPrice);
+            amountToPay = totalPrice - creditsUsed;
 
-        // Deduct credits
-        user.credits -= creditsUsed;
-        await user.save();
+            // Deduct credits from company
+            company.credits -= creditsUsed;
+            company.creditsUsed += creditsUsed;
+            await company.save();
+
+            // Check if credits are low (e.g., less than 50 or 10% of total purchased)
+            const lowCreditThreshold = Math.max(50, company.creditsPurchased * 0.1);
+            if (company.credits < lowCreditThreshold) {
+              // Send reminder to company admin
+              const { sendLowCreditReminder } = await import('../utils/email');
+              sendLowCreditReminder(company.email, company.name, company.credits)
+                .catch(err => logger.error('Low credit reminder failed:', err));
+            }
+          }
+        }
+
+        // If still amount to pay and user has personal credits
+        if (amountToPay > 0 && user.credits > 0) {
+          const personalCreditsUsed = Math.min(user.credits, amountToPay);
+          creditsUsed += personalCreditsUsed;
+          amountToPay -= personalCreditsUsed;
+
+          // Deduct credits from user
+          user.credits -= personalCreditsUsed;
+          await user.save();
+        }
       }
     }
 
