@@ -20,10 +20,11 @@ interface EnvironmentVariables {
 
 class EnvironmentValidator {
   private static instance: EnvironmentValidator;
-  private env: EnvironmentVariables;
+  private env: EnvironmentVariables | null = null;
+  private validated = false;
 
   private constructor() {
-    this.env = this.validateEnvironment();
+    // Don't validate immediately - wait for explicit call
   }
 
   public static getInstance(): EnvironmentValidator {
@@ -31,6 +32,17 @@ class EnvironmentValidator {
       EnvironmentValidator.instance = new EnvironmentValidator();
     }
     return EnvironmentValidator.instance;
+  }
+
+  /**
+   * Validate environment variables
+   * Call this explicitly at server startup, not at module import time
+   */
+  public validate(): void {
+    if (!this.validated) {
+      this.env = this.validateEnvironment();
+      this.validated = true;
+    }
   }
 
   private validateEnvironment(): EnvironmentVariables {
@@ -150,21 +162,39 @@ class EnvironmentValidator {
   }
 
   public getEnv(): EnvironmentVariables {
+    if (!this.validated || !this.env) {
+      throw new Error('Environment not validated. Call validate() first.');
+    }
     return this.env;
   }
 
   public isProduction(): boolean {
+    if (!this.env) return false;
     return this.env.NODE_ENV === 'production';
   }
 
   public isDevelopment(): boolean {
+    if (!this.env) return false;
     return this.env.NODE_ENV === 'development';
   }
 
   public isTest(): boolean {
+    if (!this.env) return false;
     return this.env.NODE_ENV === 'test';
   }
 }
 
+// Export the validator instance (but don't validate yet)
 export const envValidator = EnvironmentValidator.getInstance();
-export const env = envValidator.getEnv();
+
+// Create a lazy getter for env that ensures validation
+let cachedEnv: EnvironmentVariables | null = null;
+export const env = new Proxy({} as EnvironmentVariables, {
+  get(target, prop) {
+    if (!cachedEnv) {
+      envValidator.validate();
+      cachedEnv = envValidator.getEnv();
+    }
+    return cachedEnv[prop as keyof EnvironmentVariables];
+  }
+});

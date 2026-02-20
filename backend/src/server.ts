@@ -50,10 +50,17 @@ import { healthCheck, livenessProbe, readinessProbe } from './controllers/health
 // Load environment variables
 dotenv.config();
 
-// Validate environment variables
+// Validate environment variables explicitly at startup
 logger.info('Validating environment variables...');
-logger.info(`Environment: ${env.NODE_ENV}`);
-logger.info(`Port: ${env.PORT}`);
+try {
+  envValidator.validate();
+  logger.info(`✓ Environment validated successfully`);
+  logger.info(`Environment: ${env.NODE_ENV}`);
+  logger.info(`Port: ${env.PORT}`);
+} catch (error: any) {
+  logger.error('❌ Environment validation failed:', error.message);
+  process.exit(1);
+}
 
 // Create Express app
 const app: Application = express();
