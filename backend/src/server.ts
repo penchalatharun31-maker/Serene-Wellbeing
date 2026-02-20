@@ -135,7 +135,7 @@ app.use(notFound);
 app.use(errorHandler);
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 const HOST = process.env.HOST || "0.0.0.0"; // Bind to all interfaces for Railway
 
 server.listen(PORT, HOST, () => {
