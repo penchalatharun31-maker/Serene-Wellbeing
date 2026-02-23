@@ -88,10 +88,9 @@ export default defineConfig(({ mode }) => {
         }
       })
     ],
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-    },
+    // Note: NEVER expose backend API keys to the frontend!
+    // Gemini AI calls should be made from the backend only
+    define: {},
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

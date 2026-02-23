@@ -27,7 +27,8 @@ const Login: React.FC = () => {
       await apiClient.post('/auth/oauth/set-role', { role });
 
       // Redirect to Google OAuth
-      window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/v1/auth/google`;
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+      window.location.href = `${API_BASE}/auth/google`;
     } catch (error) {
       console.error('Failed to initiate Google login:', error);
     }

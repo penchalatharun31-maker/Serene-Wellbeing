@@ -25,9 +25,9 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
       setLoading(true);
       setError(null);
 
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
       const response = await fetch(
-        `${API_BASE_URL}/api/v1/experts/${expertId}/availability?date=${selectedDate}&duration=${duration}`
+        `${API_BASE_URL}/experts/${expertId}/availability?date=${selectedDate}&duration=${duration}`
       );
 
       if (!response.ok) {

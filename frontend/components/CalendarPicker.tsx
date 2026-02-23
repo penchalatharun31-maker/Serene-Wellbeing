@@ -24,9 +24,9 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth() + 1; // JavaScript months are 0-indexed
 
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
       const response = await fetch(
-        `${API_BASE_URL}/api/v1/experts/${expertId}/available-dates?year=${year}&month=${month}`
+        `${API_BASE_URL}/experts/${expertId}/available-dates?year=${year}&month=${month}`
       );
 
       if (!response.ok) {
