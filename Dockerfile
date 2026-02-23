@@ -41,15 +41,26 @@ RUN npm run build
 # Production stage with Nginx
 FROM nginx:alpine
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/nginx.conf
+# Install gettext for envsubst (template substitution)
+RUN apk add --no-cache bash gettext
+
+# Copy custom nginx config template
+COPY nginx.conf /etc/nginx/templates/nginx.conf.template
 
 # Copy built files from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Expose port 80
-EXPOSE 80
+# Create startup script to handle Railway's dynamic PORT
+RUN echo '#!/bin/bash\n\
+set -e\n\
+export PORT=${PORT:-80}\n\
+echo "Starting Nginx on port $PORT"\n\
+envsubst "\$PORT" < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf\n\
+nginx -g "daemon off;"\n\
+' > /start.sh && chmod +x /start.sh
 
-# Start nginx
-# Note: Railway handles healthchecks via railway.json, no need for Docker HEALTHCHECK
-CMD ["nginx", "-g", "daemon off;"]
+# Expose the port (Railway will override this)
+EXPOSE ${PORT:-80}
+
+# Start nginx with dynamic port
+CMD ["/start.sh"]
