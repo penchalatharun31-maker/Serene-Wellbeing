@@ -31,8 +31,11 @@ const OAuthCallback: React.FC = () => {
         // Store token in localStorage
         localStorage.setItem('token', token);
 
+        // API base URL
+        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+
         // Fetch user data
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/v1/auth/me`, {
+        const response = await fetch(`${API_BASE}/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -54,7 +57,7 @@ const OAuthCallback: React.FC = () => {
         } else if (role === 'expert') {
           // Check if expert profile is complete
           const expertResponse = await fetch(
-            `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/v1/experts/user/${data.user._id}`,
+            `${API_BASE}/experts/user/${data.user._id}`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
