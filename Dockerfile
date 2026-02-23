@@ -42,7 +42,7 @@ RUN npm run build
 FROM nginx:alpine
 
 # Install gettext for envsubst (template substitution)
-RUN apk add --no-cache bash gettext
+RUN apk add --no-cache gettext
 
 # Copy custom nginx config template
 COPY nginx.conf /etc/nginx/templates/nginx.conf.template
@@ -50,17 +50,12 @@ COPY nginx.conf /etc/nginx/templates/nginx.conf.template
 # Copy built files from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Create startup script to handle Railway's dynamic PORT
-RUN echo '#!/bin/bash\n\
-set -e\n\
-export PORT=${PORT:-80}\n\
-echo "Starting Nginx on port $PORT"\n\
-envsubst "\$PORT" < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf\n\
-nginx -g "daemon off;"\n\
-' > /start.sh && chmod +x /start.sh
+# Copy and set up startup script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-# Expose the port (Railway will override this)
-EXPOSE ${PORT:-80}
+# Expose port (Railway will assign actual port via PORT env var)
+EXPOSE 80
 
 # Start nginx with dynamic port
-CMD ["/start.sh"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
