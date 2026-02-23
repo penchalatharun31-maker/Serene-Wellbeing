@@ -1,16 +1,17 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 import User, { IUser } from '../models/User';
 import { AppError } from '../utils/errors';
 
-export interface AuthRequest extends Request {
-  user?: IUser;
-}
+// AuthRequest is kept as an alias for Request for backward compatibility
+// with controllers that import it. req.user is already typed as IUser | undefined
+// via the global Express namespace declaration in src/types/express.d.ts
+export type AuthRequest = Request;
 
-export const protect = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
+export const protect: RequestHandler = async (
+  req,
+  res,
+  next
 ): Promise<void> => {
   try {
     let token: string | undefined;
@@ -64,16 +65,16 @@ export const protect = async (
   }
 };
 
-export const authorize = (...roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+export const authorize = (...roles: string[]): RequestHandler => {
+  return (req, res, next): void => {
     if (!req.user) {
       return next(new AppError('Not authorized', 401));
     }
 
-    if (!roles.includes(req.user.role)) {
+    if (!roles.includes((req.user as IUser).role)) {
       return next(
         new AppError(
-          `User role '${req.user.role}' is not authorized to access this route`,
+          `User role '${(req.user as IUser).role}' is not authorized to access this route`,
           403
         )
       );
@@ -83,10 +84,10 @@ export const authorize = (...roles: string[]) => {
   };
 };
 
-export const optional = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
+export const optional: RequestHandler = async (
+  req,
+  res,
+  next
 ): Promise<void> => {
   try {
     let token: string | undefined;
