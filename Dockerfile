@@ -50,9 +50,6 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Expose port 80
 EXPOSE 80
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
-
 # Start nginx
+# Note: Railway handles healthchecks via railway.json, no need for Docker HEALTHCHECK
 CMD ["nginx", "-g", "daemon off;"]
