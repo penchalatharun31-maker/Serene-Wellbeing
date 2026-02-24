@@ -1,7 +1,7 @@
 # Multi-stage build for React frontend
-FROM node:20-alpine AS builder
+FROM node:20-alpine AS base
 
-# Accept VITE env vars as build arguments so Vite can bake them into the bundle
+# Accept VITE env vars as build arguments
 ARG VITE_API_URL
 ARG VITE_RAZORPAY_KEY_ID
 ARG VITE_STRIPE_PUBLISHABLE_KEY
@@ -11,6 +11,30 @@ ARG VITE_SUPPORT_EMAIL=support@serenewellbeing.com
 ARG VITE_ENABLE_CHAT=true
 ARG VITE_ENABLE_VIDEO_CALLS=true
 ARG VITE_ENABLE_GROUP_SESSIONS=true
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Development stage
+FROM base AS development
+
+# Install all dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Expose Vite dev server port
+EXPOSE 3000
+
+# Start Vite dev server
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+# Builder stage
+FROM base AS builder
 
 # Expose build args as env vars so Vite picks them up during build
 ENV VITE_API_URL=$VITE_API_URL
@@ -23,12 +47,6 @@ ENV VITE_ENABLE_CHAT=$VITE_ENABLE_CHAT
 ENV VITE_ENABLE_VIDEO_CALLS=$VITE_ENABLE_VIDEO_CALLS
 ENV VITE_ENABLE_GROUP_SESSIONS=$VITE_ENABLE_GROUP_SESSIONS
 
-# Set working directory
-WORKDIR /app
-
-# Copy package files first for better layer caching
-COPY package*.json ./
-
 # Install all dependencies (needed for build)
 RUN npm ci
 
@@ -39,7 +57,7 @@ COPY . .
 RUN npm run build
 
 # Production stage with Nginx
-FROM nginx:alpine
+FROM nginx:alpine AS production
 
 # Install gettext for envsubst (template substitution)
 RUN apk add --no-cache gettext

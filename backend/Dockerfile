@@ -1,5 +1,5 @@
 # Multi-stage build for smaller production image
-FROM node:18-alpine AS builder
+FROM node:18-alpine AS base
 
 # Set working directory
 WORKDIR /app
@@ -7,6 +7,25 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 COPY tsconfig.json ./
+
+# Development stage
+FROM base AS development
+
+# Install all dependencies
+RUN npm ci
+
+# Copy source code
+COPY src ./src
+COPY nodemon.json ./
+
+# Expose port and debugger
+EXPOSE 5000 9229
+
+# Start with nodemon for hot reload
+CMD ["npm", "run", "dev"]
+
+# Builder stage
+FROM base AS builder
 
 # Install all dependencies (needed for build)
 RUN npm ci
@@ -18,7 +37,7 @@ COPY src ./src
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine
+FROM node:18-alpine AS production
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init

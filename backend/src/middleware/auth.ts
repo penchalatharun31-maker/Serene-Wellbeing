@@ -3,12 +3,11 @@ import jwt from 'jsonwebtoken';
 import User, { IUser } from '../models/User';
 import { AppError } from '../utils/errors';
 
-export interface AuthRequest extends Request {
-  user?: IUser;
-}
+// Type alias for backward compatibility - Express.Request is already extended globally
+export type AuthRequest = Request;
 
 export const protect = async (
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -65,7 +64,7 @@ export const protect = async (
 };
 
 export const authorize = (...roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       return next(new AppError('Not authorized', 401));
     }
@@ -84,7 +83,7 @@ export const authorize = (...roles: string[]) => {
 };
 
 export const optional = async (
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
