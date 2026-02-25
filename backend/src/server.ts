@@ -111,14 +111,17 @@ app.use(
 );
 
 // CORS configuration
-app.use(
-  cors({
-    origin: env.FRONTEND_URL,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Request-ID'],
-  })
-);
+const corsOptions = {
+  origin: env.FRONTEND_URL,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Request-ID', 'X-Session-Id'],
+};
+
+// Explicit preflight handler — must come before all other middleware
+app.options('*', cors(corsOptions));
+
+app.use(cors(corsOptions));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -134,7 +137,9 @@ const sessionConfig: session.SessionOptions = {
   cookie: {
     secure: envValidator.isProduction(),
     httpOnly: true,
-    sameSite: envValidator.isProduction() ? 'strict' : 'lax',
+    // 'none' required for cross-origin requests (frontend & backend on different Railway domains)
+    // 'none' must be paired with secure: true (enforced in production above)
+    sameSite: envValidator.isProduction() ? 'none' : 'lax',
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
   },
 };

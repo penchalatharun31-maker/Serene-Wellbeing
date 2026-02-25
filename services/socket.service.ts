@@ -11,7 +11,9 @@ class SocketService {
 
         this.socket = io(SOCKET_URL, {
             auth: { token },
-            transports: ['websocket'],
+            // Start with polling so the HTTP handshake succeeds through Railway/proxies,
+            // then upgrade to websocket. Using websocket-only skips this handshake and breaks.
+            transports: ['polling', 'websocket'],
             reconnection: true,
         });
 
