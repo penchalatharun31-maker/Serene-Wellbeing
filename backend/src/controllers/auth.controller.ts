@@ -417,7 +417,7 @@ export const refreshToken = async (
     }
 
     // Generate new access token
-    const newAccessToken = generateToken({ id: user._id, role: user.role });
+    const newAccessToken = generateToken({ id: user._id.toString(), role: user.role });
 
     // Set new access token cookie
     const cookieOptions = {
