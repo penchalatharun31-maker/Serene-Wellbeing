@@ -12,6 +12,7 @@ import {
   resetPassword,
   verifyEmail,
   updatePreferences,
+  refreshToken,
 } from '../controllers/auth.controller';
 import {
   setOAuthRole,
@@ -53,6 +54,7 @@ router.post('/register', authLimiter, validate(registerValidation), register);
 router.post('/login', authLimiter, validate(loginValidation), login);
 router.post('/forgot-password', passwordResetLimiter, forgotPassword);
 router.post('/reset-password', passwordResetLimiter, resetPassword);
+router.post('/refresh', refreshToken); // Refresh access token using refresh token cookie
 
 // Google OAuth routes
 router.post('/oauth/set-role', setOAuthRole); // Set role before OAuth

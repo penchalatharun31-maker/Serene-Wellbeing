@@ -18,8 +18,7 @@ export interface RegisterData {
 
 export interface AuthResponse {
   success: boolean;
-  token: string;
-  refreshToken: string;
+  // Note: tokens are no longer in response body, they're sent as httpOnly cookies
   user: {
     id: string;
     name: string;
@@ -49,9 +48,10 @@ export const authService = {
   // Logout
   logout: async (): Promise<void> => {
     await apiClient.post('/auth/logout');
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    // Cookies are cleared by the server
     localStorage.removeItem('user');
+    localStorage.removeItem('csrfToken');
+    localStorage.removeItem('sessionId');
   },
 
   // Get current user

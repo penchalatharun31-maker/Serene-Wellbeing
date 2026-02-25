@@ -9,15 +9,14 @@ const apiClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Enable sending cookies with requests
 });
 
-// Request interceptor - Add auth token and CSRF token
+// Request interceptor - Add CSRF token (tokens now sent via httpOnly cookies)
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // No longer need to manually add Authorization header - cookies are sent automatically
+    // with withCredentials: true
 
     // Add CSRF token for state-changing operations
     if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase() || '')) {
@@ -62,35 +61,27 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // Try to refresh token
-      const refreshToken = localStorage.getItem('refreshToken');
-
-      if (refreshToken) {
-        try {
-          const { data } = await axios.post(`${API_URL}/auth/refresh`, {
-            refreshToken,
-          });
-
-          localStorage.setItem('token', data.token);
-
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${data.token}`;
+      // Try to refresh token using the refresh token cookie
+      // The refreshToken is now in an httpOnly cookie, so we just call the endpoint
+      try {
+        await axios.post(
+          `${API_URL}/auth/refresh`,
+          {},
+          {
+            withCredentials: true, // Send the refreshToken cookie
           }
+        );
 
-          return apiClient(originalRequest);
-        } catch (refreshError) {
-          // Refresh failed, logout user
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
-          return Promise.reject(refreshError);
-        }
-      } else {
-        // No refresh token, logout
-        localStorage.removeItem('token');
+        // If refresh succeeds, retry the original request
+        // The new accessToken cookie is automatically set by the server
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed, clear local data and redirect to login
         localStorage.removeItem('user');
+        localStorage.removeItem('csrfToken');
+        localStorage.removeItem('sessionId');
         window.location.href = '/login';
+        return Promise.reject(refreshError);
       }
     }
 

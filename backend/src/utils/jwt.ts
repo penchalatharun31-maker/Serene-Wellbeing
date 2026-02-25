@@ -39,23 +39,35 @@ export const sendTokenResponse = (
   const token = generateToken({ id: user._id, role: user.role });
   const refreshToken = generateRefreshToken({ id: user._id });
 
-  // Cookie options
-  const cookieOptions = {
+  // Cookie options for access token
+  const accessTokenCookieOptions = {
     expires: new Date(
       Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days
     ),
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    sameSite: process.env.NODE_ENV === 'production' ? ('strict' as const) : ('lax' as const),
+    path: '/',
   };
 
+  // Cookie options for refresh token
+  const refreshTokenCookieOptions = {
+    expires: new Date(
+      Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days
+    ),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? ('strict' as const) : ('lax' as const),
+    path: '/',
+  };
+
+  // Set cookies - ONLY send tokens via httpOnly cookies, not in response body
   res
     .status(statusCode)
-    .cookie('token', token, cookieOptions)
+    .cookie('accessToken', token, accessTokenCookieOptions)
+    .cookie('refreshToken', refreshToken, refreshTokenCookieOptions)
     .json({
       success: true,
-      token,
-      refreshToken,
       user: {
         id: user._id,
         name: user.name,

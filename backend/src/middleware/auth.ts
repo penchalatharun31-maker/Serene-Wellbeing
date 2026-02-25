@@ -16,16 +16,20 @@ export const protect: RequestHandler = async (
   try {
     let token: string | undefined;
 
-    // Check for token in Authorization header
-    if (
+    // Check for token in cookies first (preferred method - httpOnly cookies)
+    if (req.cookies?.accessToken) {
+      token = req.cookies.accessToken;
+    }
+    // Fallback to old cookie name for backward compatibility
+    else if (req.cookies?.token) {
+      token = req.cookies.token;
+    }
+    // Fallback to Authorization header for backward compatibility
+    else if (
       req.headers.authorization &&
       req.headers.authorization.startsWith('Bearer')
     ) {
       token = req.headers.authorization.split(' ')[1];
-    }
-    // Check for token in cookies
-    else if (req.cookies?.token) {
-      token = req.cookies.token;
     }
 
     if (!token) {
@@ -92,13 +96,20 @@ export const optional: RequestHandler = async (
   try {
     let token: string | undefined;
 
-    if (
+    // Check for token in cookies first (preferred method - httpOnly cookies)
+    if (req.cookies?.accessToken) {
+      token = req.cookies.accessToken;
+    }
+    // Fallback to old cookie name for backward compatibility
+    else if (req.cookies?.token) {
+      token = req.cookies.token;
+    }
+    // Fallback to Authorization header for backward compatibility
+    else if (
       req.headers.authorization &&
       req.headers.authorization.startsWith('Bearer')
     ) {
       token = req.headers.authorization.split(' ')[1];
-    } else if (req.cookies?.token) {
-      token = req.cookies.token;
     }
 
     if (token) {

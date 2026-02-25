@@ -111,15 +111,24 @@ export const logout = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    res.cookie('token', 'none', {
+    // Clear both old and new cookie names for compatibility
+    const cookieOptions = {
       expires: new Date(Date.now() + 10 * 1000),
       httpOnly: true,
-    });
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? ('strict' as const) : ('lax' as const),
+      path: '/',
+    };
 
-    res.status(200).json({
-      success: true,
-      message: 'Logged out successfully',
-    });
+    res
+      .cookie('accessToken', 'none', cookieOptions)
+      .cookie('refreshToken', 'none', cookieOptions)
+      .cookie('token', 'none', cookieOptions) // Clear old cookie name too
+      .status(200)
+      .json({
+        success: true,
+        message: 'Logged out successfully',
+      });
   } catch (error) {
     next(error);
   }
@@ -374,6 +383,60 @@ export const updatePreferences = async (
       success: true,
       user,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const refreshToken = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    // Get refresh token from cookie
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      throw new AppError('No refresh token provided', 401);
+    }
+
+    // Verify refresh token
+    const { verifyRefreshToken, generateToken } = await import('../utils/jwt');
+    const decoded = verifyRefreshToken(refreshToken);
+
+    // Get user
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      throw new AppError('User not found', 401);
+    }
+
+    if (!user.isActive) {
+      throw new AppError('User account is deactivated', 401);
+    }
+
+    // Generate new access token
+    const newAccessToken = generateToken({ id: user._id, role: user.role });
+
+    // Set new access token cookie
+    const cookieOptions = {
+      expires: new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days
+      ),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? ('strict' as const) : ('lax' as const),
+      path: '/',
+    };
+
+    res
+      .cookie('accessToken', newAccessToken, cookieOptions)
+      .status(200)
+      .json({
+        success: true,
+        message: 'Token refreshed successfully',
+      });
   } catch (error) {
     next(error);
   }

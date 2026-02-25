@@ -22,22 +22,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Load user from localStorage and verify with backend
+  // Load user from backend on mount (tokens are in httpOnly cookies)
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
 
-      if (token && storedUser) {
+      // If we have a stored user, try to verify with backend
+      if (storedUser) {
         try {
-          // Verify token with backend
+          // Verify auth with backend using the httpOnly cookie
           const response = await authService.getCurrentUser();
           setUser(response.user);
         } catch (err) {
-          // Token invalid, clear storage
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
+          // Auth failed (cookie expired/invalid), clear storage
           localStorage.removeItem('user');
+          setUser(null);
+        }
+      } else {
+        // No stored user, but let's check if we have valid cookies
+        try {
+          const response = await authService.getCurrentUser();
+          setUser(response.user);
+          // Store user info in localStorage for quick access
+          localStorage.setItem('user', JSON.stringify(response.user));
+        } catch (err) {
+          // No valid auth, continue as guest
           setUser(null);
         }
       }
@@ -54,9 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const response: AuthResponse = await authService.login({ email, password });
 
-      // Store tokens
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('refreshToken', response.refreshToken);
+      // No need to store tokens - they're in httpOnly cookies
+      // Only store user info for quick access
       localStorage.setItem('user', JSON.stringify(response.user));
 
       // Update state
@@ -95,9 +103,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currency,
       });
 
-      // Store tokens
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('refreshToken', response.refreshToken);
+      // No need to store tokens - they're in httpOnly cookies
+      // Only store user info for quick access
       localStorage.setItem('user', JSON.stringify(response.user));
 
       // Update state
@@ -116,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      // Call logout endpoint
+      // Call logout endpoint (clears httpOnly cookies on server)
       await authService.logout();
     } catch (err) {
       // Continue with local logout even if API call fails
@@ -124,9 +131,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       // Clear local state
       setUser(null);
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
+      localStorage.removeItem('csrfToken');
+      localStorage.removeItem('sessionId');
       // Use replace to prevent back button from going to authenticated pages
       navigate('/', { replace: true });
     }
