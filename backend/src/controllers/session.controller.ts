@@ -98,12 +98,24 @@ export const createSession = async (
       }
     }
 
+    // Calculate end time from scheduled time and duration
+    const calculateEndTime = (startTime: string, durationMinutes: number): string => {
+      const [hours, minutes] = startTime.split(':').map(Number);
+      const totalMinutes = hours * 60 + minutes + durationMinutes;
+      const endHours = Math.floor(totalMinutes / 60) % 24;
+      const endMinutes = totalMinutes % 60;
+      return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+    };
+
+    const endTime = calculateEndTime(scheduledTime, duration);
+
     // Create session
     const session = await Session.create({
       userId: req.user!._id,
       expertId,
       scheduledDate: new Date(scheduledDate),
       scheduledTime,
+      endTime,
       duration,
       price: totalPrice,
       notes,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge, Input, ImageUpload } from '../components/UI';
 import { Users, DollarSign, AlertTriangle, TrendingUp, MoreHorizontal, Check, X, Briefcase, Calendar, Settings, Tag, Edit, CreditCard, FileText, Loader2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';

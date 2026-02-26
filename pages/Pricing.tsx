@@ -19,6 +19,8 @@ interface PricingPlan {
   bestValue: boolean;
   description: string;
   shortDescription: string;
+  minEmployees?: number;
+  maxEmployees?: number;
 }
 
 const Pricing = () => {

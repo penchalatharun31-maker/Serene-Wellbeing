@@ -29,20 +29,31 @@ export const Button: React.FC<ButtonProps> = ({ variant = 'primary', size = 'md'
   );
 };
 
-export const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-xl border border-gray-100 shadow-sm ${className}`}>
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const Card: React.FC<CardProps> = ({ children, className = '', ...props }) => (
+  <div className={`bg-white rounded-xl border border-gray-100 shadow-sm ${className}`} {...props}>
     {children}
   </div>
 );
 
-export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color = 'emerald' }) => {
+interface BadgeProps {
+  children: React.ReactNode;
+  color?: string;
+  className?: string;
+}
+
+export const Badge: React.FC<BadgeProps> = ({ children, color = 'emerald', className = '' }) => {
   const colors: Record<string, string> = {
     emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
     blue: 'bg-blue-50 text-blue-700 ring-blue-600/20',
     gray: 'bg-gray-50 text-gray-600 ring-gray-500/10',
   }
   return (
-    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${colors[color] || colors.emerald}`}>
+    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${colors[color] || colors.emerald} ${className}`}>
       {children}
     </span>
   );

@@ -6,7 +6,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 const OAuthCallback: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setUser, setIsAuthenticated } = useAuth();
+  const { updateUser } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,9 +47,9 @@ const OAuthCallback: React.FC = () => {
 
         const data = await response.json();
 
-        // Update auth context
-        setUser(data.user);
-        setIsAuthenticated(true);
+        // Update auth context and store user data
+        updateUser(data.user);
+        localStorage.setItem('user', JSON.stringify(data.user));
 
         // Redirect based on role
         if (role === 'company') {
@@ -86,7 +86,7 @@ const OAuthCallback: React.FC = () => {
     };
 
     handleOAuthCallback();
-  }, [searchParams, navigate, setUser, setIsAuthenticated]);
+  }, [searchParams, navigate, updateUser]);
 
   const getErrorMessage = (errorCode: string): string => {
     switch (errorCode) {

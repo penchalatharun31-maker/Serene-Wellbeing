@@ -301,3 +301,65 @@ export const sendLowCreditReminder = async (
     html,
   });
 };
+
+export const sendEmployeeInvitation = async (
+  email: string,
+  name: string,
+  companyName: string,
+  temporaryPassword: string,
+  isAdmin: boolean = false
+): Promise<void> => {
+  const roleText = isAdmin ? 'company admin' : 'employee';
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #4F46E5; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background: #f9f9f9; }
+          .credentials { background: white; padding: 15px; margin: 20px 0; border-left: 4px solid #4F46E5; }
+          .button { background: #4F46E5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
+          .warning { background: #FEF3C7; padding: 10px; border-left: 4px solid #F59E0B; margin: 15px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Welcome to Serene Wellbeing!</h1>
+          </div>
+          <div class="content">
+            <h2>Hello ${name},</h2>
+            <p>You have been invited to join <strong>${companyName}</strong>'s wellness program on Serene Wellbeing as ${roleText}.</p>
+            <p>Your account has been created with the following credentials:</p>
+            <div class="credentials">
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Temporary Password:</strong> ${temporaryPassword}</p>
+            </div>
+            <div class="warning">
+              <p><strong>Important:</strong> Please change your password immediately after your first login for security purposes.</p>
+            </div>
+            <a href="${process.env.FRONTEND_URL}/login" class="button">Login Now</a>
+            <p>As ${roleText}, you will have access to:</p>
+            <ul>
+              <li>Browse and book sessions with certified wellness experts</li>
+              <li>Access wellness resources and content library</li>
+              <li>Track your wellness journey and progress</li>
+              ${isAdmin ? '<li>Manage employee access and company wellness dashboard</li>' : ''}
+              ${isAdmin ? '<li>View company usage analytics and reports</li>' : ''}
+            </ul>
+            <p>If you have any questions or need assistance, please don't hesitate to reach out to our support team.</p>
+            <p>Best regards,<br>The Serene Wellbeing Team</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  await sendEmail({
+    to: email,
+    subject: `Invitation to join ${companyName}'s Wellness Program - Serene Wellbeing`,
+    html,
+  });
+};

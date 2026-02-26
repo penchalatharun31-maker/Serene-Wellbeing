@@ -71,6 +71,7 @@ describe('AuthContext', () => {
     };
 
     const mockAuthResponse = {
+      success: true,
       user: mockUser,
       token: 'mock-token',
       refreshToken: 'mock-refresh-token',
