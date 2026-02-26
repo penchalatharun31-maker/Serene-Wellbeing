@@ -11,6 +11,14 @@ interface EnvironmentVariables {
   JWT_REFRESH_SECRET: string;
   GEMINI_API_KEY: string;
   STRIPE_SECRET_KEY: string;
+  STRIPE_WEBHOOK_SECRET: string;
+  RAZORPAY_KEY_ID: string;
+  RAZORPAY_KEY_SECRET: string;
+  RAZORPAY_WEBHOOK_SECRET: string;
+  SESSION_SECRET: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  GOOGLE_CALLBACK_URL: string;
   EMAIL_HOST: string;
   EMAIL_PORT: number;
   EMAIL_USER: string;
@@ -58,6 +66,14 @@ class EnvironmentValidator {
       'JWT_REFRESH_SECRET',
       'GEMINI_API_KEY',
       'STRIPE_SECRET_KEY',
+      'STRIPE_WEBHOOK_SECRET',
+      'RAZORPAY_KEY_ID',
+      'RAZORPAY_KEY_SECRET',
+      'RAZORPAY_WEBHOOK_SECRET',
+      'SESSION_SECRET',
+      'GOOGLE_CLIENT_ID',
+      'GOOGLE_CLIENT_SECRET',
+      'GOOGLE_CALLBACK_URL',
       'EMAIL_HOST',
       'EMAIL_PORT',
       'EMAIL_USER',
@@ -92,6 +108,14 @@ class EnvironmentValidator {
       JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET!,
       GEMINI_API_KEY: process.env.GEMINI_API_KEY!,
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY!,
+      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET!,
+      RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID!,
+      RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET!,
+      RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET!,
+      SESSION_SECRET: process.env.SESSION_SECRET!,
+      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID!,
+      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET!,
+      GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL!,
       EMAIL_HOST: process.env.EMAIL_HOST!,
       EMAIL_PORT: parseInt(process.env.EMAIL_PORT!, 10),
       EMAIL_USER: process.env.EMAIL_USER!,
@@ -103,6 +127,7 @@ class EnvironmentValidator {
   private validateJWTSecrets(): void {
     const jwtSecret = process.env.JWT_SECRET || '';
     const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || '';
+    const sessionSecret = process.env.SESSION_SECRET || '';
 
     if (jwtSecret.length < 32) {
       throw new Error('JWT_SECRET must be at least 32 characters long');
@@ -110,6 +135,10 @@ class EnvironmentValidator {
 
     if (jwtRefreshSecret.length < 32) {
       throw new Error('JWT_REFRESH_SECRET must be at least 32 characters long');
+    }
+
+    if (sessionSecret.length < 32) {
+      throw new Error('SESSION_SECRET must be at least 32 characters long');
     }
 
     // In production, ensure secrets are not default values
@@ -125,6 +154,11 @@ class EnvironmentValidator {
         if (jwtRefreshSecret.toLowerCase().includes(pattern)) {
           throw new Error(
             `JWT_REFRESH_SECRET contains dangerous pattern: "${pattern}". Use a secure random string in production.`
+          );
+        }
+        if (sessionSecret.toLowerCase().includes(pattern)) {
+          throw new Error(
+            `SESSION_SECRET contains dangerous pattern: "${pattern}". Use a secure random string in production.`
           );
         }
       }

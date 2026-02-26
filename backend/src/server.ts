@@ -11,11 +11,13 @@ import MongoStore from 'connect-mongo';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import connectDB from './config/database';
+import { connectRedis } from './config/redis';
 import passport from './config/passport';
 import logger from './utils/logger';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import { sanitizeInput } from './middleware/validation';
 import { apiLimiter } from './middleware/rateLimiter';
+import { verifyCsrfToken } from './middleware/csrf';
 import { setupSocket } from './sockets/socket';
 import { gracefulShutdown } from './utils/gracefulShutdown';
 import { env, envValidator } from './config/env.validation';
@@ -98,6 +100,13 @@ app.set('io', io);
 // Connect to database
 connectDB();
 
+// Connect to Redis for CSRF tokens and caching
+connectRedis().catch((error) => {
+  logger.error('Failed to connect to Redis:', error);
+  logger.error('CSRF protection will not work without Redis. Please configure REDIS_URL.');
+  process.exit(1);
+});
+
 // Security middleware
 app.use(
   helmet({
@@ -169,6 +178,16 @@ app.use(compression());
 
 // Sanitize input
 app.use(sanitizeInput);
+
+// CSRF protection for all API routes (excluding webhooks and health checks)
+// Note: CSRF is only verified for state-changing methods (POST, PUT, DELETE, PATCH)
+app.use('/api', (req, res, next) => {
+  // Skip CSRF for webhooks and auth callbacks
+  if (req.path.includes('/webhooks') || req.path.includes('/auth/google/callback')) {
+    return next();
+  }
+  return verifyCsrfToken(req, res, next);
+});
 
 // Rate limiting
 app.use('/api', apiLimiter);

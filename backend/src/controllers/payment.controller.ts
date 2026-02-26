@@ -92,10 +92,14 @@ export const createRazorpayOrder = async (req: AuthRequest, res: Response, next:
   try {
     const { sessionId, amount, currency } = req.body;
 
-    // Initialize Razorpay
+    // Initialize Razorpay - fail fast if credentials missing
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      throw new AppError('Razorpay credentials not configured', 500);
+    }
+
     const instance = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_stub',
-      key_secret: process.env.RAZORPAY_KEY_SECRET || 'secret'
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
     });
 
     const options = {
@@ -131,9 +135,12 @@ export const verifyRazorpayPayment = async (req: AuthRequest, res: Response, nex
       throw new AppError('Missing payment verification fields', 400);
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'secret';
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      throw new AppError('Razorpay credentials not configured', 500);
+    }
+
     const generatedSignature = require('crypto')
-      .createHmac('sha256', keySecret)
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 

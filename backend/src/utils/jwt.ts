@@ -7,27 +7,35 @@ export interface TokenPayload {
 }
 
 export const generateToken = (payload: TokenPayload): string => {
-  const secret = process.env.JWT_SECRET || 'default-secret-key-change-in-production';
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured');
+  }
   const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
   // @ts-expect-error - jsonwebtoken types have issues with expiresIn string
-  return jwt.sign(payload, secret, { expiresIn });
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 };
 
 export const generateRefreshToken = (payload: TokenPayload): string => {
-  const secret = process.env.JWT_REFRESH_SECRET || 'default-refresh-secret-key-change-in-production';
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET is not configured');
+  }
   const expiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '30d';
   // @ts-expect-error - jsonwebtoken types have issues with expiresIn string
-  return jwt.sign(payload, secret, { expiresIn });
+  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn });
 };
 
 export const verifyToken = (token: string): TokenPayload => {
-  const secret = process.env.JWT_SECRET || 'default-secret-key-change-in-production';
-  return jwt.verify(token, secret) as TokenPayload;
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+  return jwt.verify(token, process.env.JWT_SECRET) as TokenPayload;
 };
 
 export const verifyRefreshToken = (token: string): TokenPayload => {
-  const secret = process.env.JWT_REFRESH_SECRET || 'default-refresh-secret-key-change-in-production';
-  return jwt.verify(token, secret) as TokenPayload;
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET is not configured');
+  }
+  return jwt.verify(token, process.env.JWT_REFRESH_SECRET) as TokenPayload;
 };
 
 export const sendTokenResponse = (

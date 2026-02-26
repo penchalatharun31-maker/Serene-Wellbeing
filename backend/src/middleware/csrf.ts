@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { getRedisClient } from '../config/redis';
+import logger from '../utils/logger';
 
 declare global {
   namespace Express {
@@ -9,100 +11,100 @@ declare global {
   }
 }
 
-// In-memory store for CSRF tokens (use Redis in production)
-const csrfTokens = new Map<string, { token: string; expiresAt: number }>();
-
-// Clean up expired tokens every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [sessionId, data] of csrfTokens.entries()) {
-    if (data.expiresAt < now) {
-      csrfTokens.delete(sessionId);
-    }
-  }
-}, 5 * 60 * 1000);
+const CSRF_TOKEN_PREFIX = 'csrf:';
+const CSRF_TOKEN_EXPIRY = 60 * 60; // 1 hour in seconds
 
 /**
  * Generate a CSRF token for the current session
  */
-export const generateCsrfToken = (req: Request, res: Response, next: NextFunction): void => {
-  // Get session identifier (use user ID if authenticated, or create session ID)
-  const sessionId = (req as any).user?._id?.toString() || req.headers['x-session-id'] as string || crypto.randomUUID();
+export const generateCsrfToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    // Get session identifier (use user ID if authenticated, or create session ID)
+    const sessionId = (req as any).user?._id?.toString() || req.headers['x-session-id'] as string || crypto.randomUUID();
 
-  // Generate token
-  const token = crypto.randomBytes(32).toString('hex');
+    // Generate token
+    const token = crypto.randomBytes(32).toString('hex');
 
-  // Store with 1 hour expiration
-  csrfTokens.set(sessionId, {
-    token,
-    expiresAt: Date.now() + 60 * 60 * 1000
-  });
+    // Store in Redis with 1 hour expiration
+    const redis = getRedisClient();
+    await redis.setEx(`${CSRF_TOKEN_PREFIX}${sessionId}`, CSRF_TOKEN_EXPIRY, token);
 
-  // Attach to request and response
-  req.csrfToken = token;
-  res.setHeader('X-CSRF-Token', token);
-  res.setHeader('X-Session-Id', sessionId);
+    // Attach to request and response
+    req.csrfToken = token;
+    res.setHeader('X-CSRF-Token', token);
+    res.setHeader('X-Session-Id', sessionId);
 
-  next();
+    next();
+  } catch (error) {
+    logger.error('Failed to generate CSRF token:', error);
+    next(error);
+  }
 };
 
 /**
  * Verify CSRF token for state-changing operations (POST, PUT, DELETE, PATCH)
  */
-export const verifyCsrfToken = (req: Request, res: Response, next: NextFunction): void => {
-  // Skip verification for GET, HEAD, OPTIONS
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-    return next();
-  }
+export const verifyCsrfToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    // Skip verification for GET, HEAD, OPTIONS
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      return next();
+    }
 
-  // Get token from header or body
-  const token = req.headers['x-csrf-token'] as string || req.body?._csrf;
-  const sessionId = (req as any).user?._id?.toString() || req.headers['x-session-id'] as string;
+    // Get token from header or body
+    const token = req.headers['x-csrf-token'] as string || req.body?._csrf;
+    const sessionId = (req as any).user?._id?.toString() || req.headers['x-session-id'] as string;
 
-  if (!token || !sessionId) {
-    res.status(403).json({
+    if (!token || !sessionId) {
+      res.status(403).json({
+        success: false,
+        message: 'CSRF token missing'
+      });
+      return;
+    }
+
+    // Verify token from Redis
+    const redis = getRedisClient();
+    const storedToken = await redis.get(`${CSRF_TOKEN_PREFIX}${sessionId}`);
+
+    if (!storedToken || storedToken !== token) {
+      res.status(403).json({
+        success: false,
+        message: 'Invalid CSRF token'
+      });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    logger.error('Failed to verify CSRF token:', error);
+    res.status(500).json({
       success: false,
-      message: 'CSRF token missing'
+      message: 'CSRF verification failed'
     });
-    return;
   }
-
-  // Verify token
-  const stored = csrfTokens.get(sessionId);
-
-  if (!stored || stored.token !== token) {
-    res.status(403).json({
-      success: false,
-      message: 'Invalid CSRF token'
-    });
-    return;
-  }
-
-  // Check expiration
-  if (stored.expiresAt < Date.now()) {
-    csrfTokens.delete(sessionId);
-    res.status(403).json({
-      success: false,
-      message: 'CSRF token expired'
-    });
-    return;
-  }
-
-  next();
 };
 
 /**
  * Middleware to attach CSRF token to all responses
  */
-export const attachCsrfToken = (req: Request, res: Response, next: NextFunction): void => {
-  const sessionId = (req as any).user?._id?.toString() || req.headers['x-session-id'] as string;
+export const attachCsrfToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const sessionId = (req as any).user?._id?.toString() || req.headers['x-session-id'] as string;
 
-  if (sessionId) {
-    const stored = csrfTokens.get(sessionId);
-    if (stored && stored.expiresAt > Date.now()) {
-      res.setHeader('X-CSRF-Token', stored.token);
+    if (sessionId) {
+      const redis = getRedisClient();
+      const storedToken = await redis.get(`${CSRF_TOKEN_PREFIX}${sessionId}`);
+
+      if (storedToken) {
+        res.setHeader('X-CSRF-Token', storedToken);
+      }
     }
-  }
 
-  next();
+    next();
+  } catch (error) {
+    logger.error('Failed to attach CSRF token:', error);
+    // Don't fail the request if CSRF attachment fails
+    next();
+  }
 };

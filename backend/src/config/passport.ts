@@ -4,9 +4,17 @@ import User from '../models/User';
 import Expert from '../models/Expert';
 import logger from '../utils/logger';
 
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_CALLBACK_URL) {
+  logger.error('Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_CALLBACK_URL.');
+  // Don't fail in development to allow testing without OAuth
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Google OAuth credentials required in production');
+  }
+}
+
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
-const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/v1/auth/google/callback';
+const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || '';
 
 // Serialize user for the session
 passport.serializeUser((user: any, done) => {

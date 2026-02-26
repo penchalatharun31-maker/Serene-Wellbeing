@@ -11,8 +11,15 @@ const RETRY_DELAY = 5000; // 5 seconds
 
 const connectDB = async (retryCount = 0): Promise<void> => {
   try {
-    if (!process.env.MONGODB_URI || process.env.MONGODB_URI === 'mongodb://localhost:27017/serene-wellbeing') {
-      logger.warn('MongoDB URI not configured or using default localhost - attempting connection...');
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI is not configured');
+    }
+
+    // In production, fail fast if using localhost MongoDB
+    if (process.env.NODE_ENV === 'production') {
+      if (process.env.MONGODB_URI.includes('localhost') || process.env.MONGODB_URI.includes('127.0.0.1')) {
+        throw new Error('Cannot use localhost MongoDB in production. Please configure a remote MongoDB URI.');
+      }
     }
 
     // Enhanced connection options for production scalability
