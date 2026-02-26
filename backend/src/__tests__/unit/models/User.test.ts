@@ -36,10 +36,11 @@ describe('User Model', () => {
       });
 
       expect(user.password).not.toBe(plainPassword);
-      expect(user.password.length).toBeGreaterThan(20);
+      expect(user.password).toBeDefined();
+      expect(user.password!.length).toBeGreaterThan(20);
 
       // Verify password is correctly hashed
-      const isValid = await bcrypt.compare(plainPassword, user.password);
+      const isValid = await bcrypt.compare(plainPassword, user.password!);
       expect(isValid).toBe(true);
     });
 
