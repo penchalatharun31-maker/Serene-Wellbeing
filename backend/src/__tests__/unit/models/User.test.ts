@@ -1,7 +1,10 @@
 import User from '../../../models/User';
 import bcrypt from 'bcryptjs';
+import { isMongoAvailable } from '../../setup';
 
-describe('User Model', () => {
+const describeIfMongo = isMongoAvailable() ? describe : describe.skip;
+
+describeIfMongo('User Model', () => {
   describe('User Creation', () => {
     it('should create a new user with valid data', async () => {
       const userData = {

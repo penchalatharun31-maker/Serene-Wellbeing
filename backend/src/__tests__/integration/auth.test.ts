@@ -2,13 +2,16 @@ import request from 'supertest';
 import express from 'express';
 import authRouter from '../../routes/auth.routes';
 import User from '../../models/User';
+import { isMongoAvailable } from '../setup';
 
 // Create Express app for testing
 const app = express();
 app.use(express.json());
 app.use('/api/v1/auth', authRouter);
 
-describe('Authentication Integration Tests', () => {
+const describeIfMongo = isMongoAvailable() ? describe : describe.skip;
+
+describeIfMongo('Authentication Integration Tests', () => {
   describe('POST /api/v1/auth/register', () => {
     it('should register a new user successfully', async () => {
       const userData = {
