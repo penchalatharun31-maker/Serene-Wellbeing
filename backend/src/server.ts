@@ -248,12 +248,13 @@ app.use(errorHandler);
 
 // Start server
 const PORT = env.PORT;
+const HOST = '0.0.0.0'; // Listen on all network interfaces (required for Docker/Railway)
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   logger.info('='.repeat(60));
   logger.info(`🚀 Serene Wellbeing API v${productionConfig.app.version}`);
   logger.info(`📍 Environment: ${env.NODE_ENV}`);
-  logger.info(`🌐 Server running on port ${PORT}`);
+  logger.info(`🌐 Server running on ${HOST}:${PORT}`);
   logger.info(`🔗 Frontend URL: ${env.FRONTEND_URL}`);
   logger.info(`💚 Health check: http://localhost:${PORT}/api/v1/health`);
   logger.info('='.repeat(60));
