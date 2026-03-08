@@ -11,8 +11,16 @@ echo "============================================"
 # Substitute environment variables in nginx config
 envsubst '${PORT}' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf
 
-echo "Nginx configuration:"
-cat /etc/nginx/nginx.conf | grep -A 2 "listen"
+echo "Nginx configuration (listen directives):"
+cat /etc/nginx/nginx.conf | grep -A 2 "listen" || echo "No listen directives found"
+
+echo "============================================"
+echo "Checking if static files exist..."
+ls -la /usr/share/nginx/html/ | head -10
+echo "============================================"
+
+echo "Testing nginx configuration..."
+nginx -t
 
 echo "============================================"
 echo "Starting Nginx daemon..."
