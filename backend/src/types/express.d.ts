@@ -5,6 +5,11 @@ declare global {
     // Extending Express.User so that req.user has all IUser properties everywhere
     // This is the correct Passport.js + TypeScript pattern
     interface User extends IUser {}
+
+    // Also extend Request to ensure user property is typed correctly
+    interface Request {
+      user?: IUser;
+    }
   }
 }
 
