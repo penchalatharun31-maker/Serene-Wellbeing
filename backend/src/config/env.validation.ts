@@ -10,19 +10,19 @@ interface EnvironmentVariables {
   JWT_SECRET: string;
   JWT_REFRESH_SECRET: string;
   GEMINI_API_KEY: string;
-  STRIPE_SECRET_KEY: string;
-  STRIPE_WEBHOOK_SECRET: string;
-  RAZORPAY_KEY_ID: string;
-  RAZORPAY_KEY_SECRET: string;
-  RAZORPAY_WEBHOOK_SECRET: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  RAZORPAY_KEY_ID?: string;
+  RAZORPAY_KEY_SECRET?: string;
+  RAZORPAY_WEBHOOK_SECRET?: string;
   SESSION_SECRET: string;
-  GOOGLE_CLIENT_ID: string;
-  GOOGLE_CLIENT_SECRET: string;
-  GOOGLE_CALLBACK_URL: string;
-  EMAIL_HOST: string;
-  EMAIL_PORT: number;
-  EMAIL_USER: string;
-  EMAIL_PASSWORD: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  GOOGLE_CALLBACK_URL?: string;
+  EMAIL_HOST?: string;
+  EMAIL_PORT?: number;
+  EMAIL_USER?: string;
+  EMAIL_PASSWORD?: string;
   FRONTEND_URL: string;
 }
 
@@ -55,9 +55,10 @@ class EnvironmentValidator {
 
   private validateEnvironment(): EnvironmentVariables {
     const errors: string[] = [];
+    const warnings: string[] = [];
 
-    // Required environment variables
-    const requiredVars = [
+    // Critical environment variables (required for basic operation)
+    const criticalVars = [
       'NODE_ENV',
       'PORT',
       'MONGODB_URI',
@@ -65,12 +66,17 @@ class EnvironmentValidator {
       'JWT_SECRET',
       'JWT_REFRESH_SECRET',
       'GEMINI_API_KEY',
+      'SESSION_SECRET',
+      'FRONTEND_URL',
+    ];
+
+    // Optional variables (features will be disabled if not set)
+    const optionalVars = [
       'STRIPE_SECRET_KEY',
       'STRIPE_WEBHOOK_SECRET',
       'RAZORPAY_KEY_ID',
       'RAZORPAY_KEY_SECRET',
       'RAZORPAY_WEBHOOK_SECRET',
-      'SESSION_SECRET',
       'GOOGLE_CLIENT_ID',
       'GOOGLE_CLIENT_SECRET',
       'GOOGLE_CALLBACK_URL',
@@ -78,13 +84,19 @@ class EnvironmentValidator {
       'EMAIL_PORT',
       'EMAIL_USER',
       'EMAIL_PASSWORD',
-      'FRONTEND_URL',
     ];
 
-    // Check if all required variables are present
-    for (const varName of requiredVars) {
+    // Check critical variables
+    for (const varName of criticalVars) {
       if (!process.env[varName]) {
         errors.push(`Missing required environment variable: ${varName}`);
+      }
+    }
+
+    // Check optional variables and warn if missing
+    for (const varName of optionalVars) {
+      if (!process.env[varName]) {
+        warnings.push(`Optional environment variable not set: ${varName} (feature may be disabled)`);
       }
     }
 
@@ -92,6 +104,11 @@ class EnvironmentValidator {
       throw new Error(
         `Environment validation failed:\n${errors.join('\n')}`
       );
+    }
+
+    if (warnings.length > 0) {
+      console.warn('⚠️  Environment warnings:');
+      warnings.forEach(w => console.warn(`   ${w}`));
     }
 
     // Validate specific formats
@@ -107,19 +124,19 @@ class EnvironmentValidator {
       JWT_SECRET: process.env.JWT_SECRET!,
       JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET!,
       GEMINI_API_KEY: process.env.GEMINI_API_KEY!,
-      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY!,
-      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET!,
-      RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID!,
-      RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET!,
-      RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET!,
+      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+      RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
+      RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
+      RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
       SESSION_SECRET: process.env.SESSION_SECRET!,
-      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID!,
-      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET!,
-      GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL!,
-      EMAIL_HOST: process.env.EMAIL_HOST!,
-      EMAIL_PORT: parseInt(process.env.EMAIL_PORT!, 10),
-      EMAIL_USER: process.env.EMAIL_USER!,
-      EMAIL_PASSWORD: process.env.EMAIL_PASSWORD!,
+      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+      GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL,
+      EMAIL_HOST: process.env.EMAIL_HOST,
+      EMAIL_PORT: process.env.EMAIL_PORT ? parseInt(process.env.EMAIL_PORT, 10) : undefined,
+      EMAIL_USER: process.env.EMAIL_USER,
+      EMAIL_PASSWORD: process.env.EMAIL_PASSWORD,
       FRONTEND_URL: process.env.FRONTEND_URL!,
     };
   }
